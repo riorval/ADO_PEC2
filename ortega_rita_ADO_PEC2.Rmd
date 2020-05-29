@@ -1,0 +1,93 @@
+---
+title: "PEC2 Análisis de Datos Ómicos"
+author: "Rita Ortega Vallbona"
+date: '`r format(Sys.Date(),"%e de %B, %Y")`'
+output: 
+  pdf_document: 
+    df_print: kable
+    fig_caption: yes
+    keep_tex: yes
+    number_sections: yes
+    toc: yes
+    toc_depth: 3
+  html_document: 
+    number_sections: yes
+    theme: united
+    toc: yes
+    toc_float: yes
+lang: en # language,  en: english (default), es: español, ...
+params:
+  file1: peptidos.csv
+  file2: peptidos_one_hot.csv
+  folder.data: data
+  seed.train: 123
+  seed.clsfier: 1234567
+bibliography: bibliografiaPEC2ADO.bib
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE,
+                      comment = NA, prompt = TRUE, tidy = TRUE,
+                      tidy.opts=list(width.cutoff=60),
+                      fig.width = 7, 
+                      fig.height = 7, fig_caption = TRUE, 
+                      cache=TRUE)
+```
+
+```{r libraries, include=FALSE}
+if(!require(knitr)) install.packages('knitr',  repos = 'http://cran.rstudio.com')
+if(!require(kableExtra)) install.packages('kableExtra',  repos = 'http://cran.rstudio.com')
+
+if(!require(printr)) install.packages('printr', type = 'source',repos = c('http://yihui.name/xran','http://cran.rstudio.com'))
+if(!require(ggplot2)) install.packages('ggplot2', repos = 'http://cran.rstudio.com')
+if(!require(ggrepel)) install.packages('ggrepel', repos = 'http://cran.rstudio.com')
+```
+
+```{r Bioconductor, include=FALSE}
+if(!requireNamespace("BiocManager", quietly = TRUE)) 
+BiocManager::install()
+
+#Paquetes de Bioconductor necesarios para el análisis:
+
+BiocManager::install("limma")
+BiocManager::install("GEOquery")
+BiocManager::install("oligo")
+BiocManager::install("pd.mogene.2.1.st")
+BiocManager::install("RSQLite")
+BiocManager::install("arrayQualityMetrics")
+BiocManager::install("pvca")
+BiocManager::install("mogene21sttranscriptcluster.db")
+BiocManager::install("magrittr")
+BiocManager::install("clusterProfiler")
+BiocManager::install("rWikiPathways", update = FALSE)
+```
+
+#Abstract
+
+#Objetivos
+
+#Materiales y métodos
+
+##Los Datos
+
+##Preprocesado de los datos
+
+###Filtraje
+
+###Normalización
+
+##Identificación de genes diferencialmente expresados
+
+##Anotación de los resultados
+
+##Busca de patrones de expresión y agrupación de las muestras (comparación entre las distintas comparaciones)
+
+##Análisis de significación biológica ("*Gene Enrichment Analysis*")
+
+#Resultados 
+
+#Discusión
+
+#Apéndice
+
+#Bibliografía
