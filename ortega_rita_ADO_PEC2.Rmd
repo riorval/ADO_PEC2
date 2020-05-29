@@ -70,6 +70,16 @@ BiocManager::install("rWikiPathways", update = FALSE)
 
 ##Los Datos
 
+```{r unzip and load data, include=FALSE}
+library(utils)
+unzip("archivos_targets_y_counts.zip", overwrite = FALSE, exdir = "./data")
+
+all_targets <- read.csv("./data/targets.csv")
+
+all_counts <- read.csv2("./data/counts.csv", header = TRUE)
+```
+
+
 ##Preprocesado de los datos
 
 ###Filtraje
