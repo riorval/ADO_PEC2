@@ -17,11 +17,10 @@ output:
     toc_float: yes
 lang: en # language,  en: english (default), es: español, ...
 params:
-  file1: peptidos.csv
-  file2: peptidos_one_hot.csv
+  file1: targets.csv
+  file2: counts.csv
   folder.data: data
-  seed.train: 123
-  seed.clsfier: 1234567
+  seed.extract: 555
 bibliography: bibliografiaPEC2ADO.bib
 ---
 
@@ -70,16 +69,39 @@ BiocManager::install("rWikiPathways", update = FALSE)
 
 ##Los Datos
 
+Obtenemos los datos de targets y counts de los archivos proporcionados en el enunciado.
+
 ```{r unzip and load data, include=FALSE}
 library(utils)
-unzip("archivos_targets_y_counts.zip", overwrite = FALSE, exdir = "./data")
+unzip("archivos_targets_y_counts.zip", overwrite = FALSE, exdir = params$folder.data)
 
-all_targets <- read.csv("./data/targets.csv")
+all_targets <- read.csv(file = file.path(params$folder.data, params$file1))
 
-all_counts <- read.csv2("./data/counts.csv", header = TRUE)
+all_counts <- read.csv2(file = file.path(params$folder.data, params$file2), header = TRUE)
 ```
 
+Con este script extraemos 10 muestras de cada grupo del archivo `r params$file1` y subseteamos las columnas escogidas en el archivo `r params$file2`.
+```{r extraer los datos}
+#Separamos el dataframe que recoge los targets por grupos
+NIT <- subset(all_targets, Group == "NIT")
+SFI <- subset(all_targets, Group == "SFI")
+ELI <- subset(all_targets, Group == "ELI")
 
+#Seleccionamos 10 muestras de cada grupo y las unimos en un único #dataframe que recoge los targets con los que trabajaremos
+set.seed(params$seed.extract)
+NIT10 <- NIT[sample(nrow(NIT), size = 10, replace = FALSE),]
+SFI10 <- SFI[sample(nrow(SFI), size = 10, replace = FALSE),]
+ELI10 <- ELI[sample(nrow(ELI), size = 10, replace = FALSE),]
+
+mytargets <- rbind(NIT10, SFI10, ELI10, deparse.level = 0)
+
+#Extraemos los nombres de las muestras y cambiamos los guiones #por puntos para que coincidan con los nombres de las muestras en #el dataframe de counts
+sample_names <- mytargets[,3]
+s_names <- gsub("-", ".", sample_names)
+
+#Subseteamos las columans escogidas del dataframe de counts
+mycounts <- dplyr::select(all_counts, s_names)
+```
 ##Preprocesado de los datos
 
 ###Filtraje
