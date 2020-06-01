@@ -34,7 +34,17 @@ knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE,
 ```
 
 ```{r libraries, include=FALSE}
-if(!require(knitr)) install.packages('knitr',  repos = 'http://cran.rstudio.com')
+# Función instalar paquetes
+usePackage <- function(paq) {    
+    if (!is.element(paq, installed.packages()[,1]))
+        install.packages(paq, dep = TRUE)
+    require(paq, character.only = TRUE)
+}
+
+usePackage("knitr")
+
+
+
 if(!require(kableExtra)) install.packages('kableExtra',  repos = 'http://cran.rstudio.com')
 
 if(!require(printr)) install.packages('printr', type = 'source',repos = c('http://yihui.name/xran','http://cran.rstudio.com'))
@@ -61,13 +71,16 @@ BiocManager::install("clusterProfiler")
 BiocManager::install("rWikiPathways", update = FALSE)
 ```
 
-#Abstract
+# Abstract
 
-#Objetivos
+# Objetivos
 
-#Materiales y métodos
+# Materiales y métodos
 
-##Los Datos
+## Los Datos
+
+Los datos proporcionados en el enunciado provienen del repositorio GTEx (*Genotype-Tissue Expression*), que recoge información de expresión específica de 54 tipos de tejido sano, proveniente de 1000 individuos. Este [portal](https://www.gtexportal.org/home/) permite el acceso a los datos de expresión, imágenes de histología, etc. 
+
 
 Obtenemos los datos de targets y counts de los archivos proporcionados en el enunciado.
 
@@ -102,24 +115,24 @@ s_names <- gsub("-", ".", sample_names)
 #Subseteamos las columans escogidas del dataframe de counts
 mycounts <- dplyr::select(all_counts, s_names)
 ```
-##Preprocesado de los datos
+## Preprocesado de los datos
 
-###Filtraje
+### Filtraje
 
-###Normalización
+### Normalización
 
-##Identificación de genes diferencialmente expresados
+## Identificación de genes diferencialmente expresados
 
-##Anotación de los resultados
+## Anotación de los resultados
 
-##Busca de patrones de expresión y agrupación de las muestras (comparación entre las distintas comparaciones)
+## Busca de patrones de expresión y agrupación de las muestras (comparación entre las distintas comparaciones)
 
-##Análisis de significación biológica ("*Gene Enrichment Analysis*")
+## Análisis de significación biológica ("*Gene Enrichment Analysis*")
 
-#Resultados 
+# Resultados 
 
-#Discusión
+# Discusión
 
-#Apéndice
+# Apéndice
 
-#Bibliografía
+# Bibliografía
