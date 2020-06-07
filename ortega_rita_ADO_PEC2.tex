@@ -110,7 +110,7 @@
 
 \title{PEC2 Análisis de Datos Ómicos}
 \author{Rita Ortega Vallbona}
-\date{1 de junio, 2020}
+\date{6 de junio, 2020}
 
 \begin{document}
 \maketitle
@@ -133,16 +133,30 @@
 
 Los datos proporcionados en el enunciado provienen del repositorio GTEx
 (\emph{Genotype-Tissue Expression}), que recoge información de expresión
-específica de 54 tipos de tejido sano, proveniente de 1000 individuos.
-Este \href{https://www.gtexportal.org/home/}{portal} permite el acceso a
-los datos de expresión, imágenes de histología, etc.
+específica de 54 tipos de tejido sano, proveniente de 1000 individuos
+(``GTEx Portal,'' n.d.). Este
+\href{https://www.gtexportal.org/home/}{\textbf{portal}} permite el
+acceso a los datos de expresión, imágenes de histología, etc.
 
-Obtenemos los datos de targets y counts de los archivos proporcionados
-en el enunciado.
+Obtenemos los datos de targets y counts de los archivos csv
+proporcionados en el enunciado: targets.csv y counts.csv.
+
+Estos son datos de expresión (RNA-seq) pertenecientes a un análisis del
+tiroides, donde se comparan tres tipos de infiltración en 292 muestras:
+
+\begin{itemize}
+\tightlist
+\item
+  \emph{Not infiltrated tissues} (\textbf{NIT}): 236 muestras
+\item
+  \emph{Small focal infiltrates} (\textbf{SFI}): 42 muestras
+\item
+  \emph{Extensive lymphoid infiltrates} (\textbf{ELI}): 14 muestras
+\end{itemize}
 
 Con este script extraemos 10 muestras de cada grupo del archivo
 targets.csv y subseteamos las columnas escogidas en el archivo
-counts.csv.
+counts.csv:
 
 \begin{Shaded}
 \begin{Highlighting}[]
@@ -169,11 +183,35 @@ counts.csv.
 \OperatorTok{>}\StringTok{ }
 \ErrorTok{>}\StringTok{ }\CommentTok{# Subseteamos las columans escogidas del dataframe de counts}
 \ErrorTok{>}\StringTok{ }\NormalTok{mycounts <-}\StringTok{ }\NormalTok{dplyr}\OperatorTok{::}\KeywordTok{select}\NormalTok{(all_counts, s_names)}
+\OperatorTok{>}\StringTok{ }\KeywordTok{row.names}\NormalTok{(mycounts) <-}\StringTok{ }\NormalTok{all_counts}\OperatorTok{$}\NormalTok{X}
 \end{Highlighting}
 \end{Shaded}
 
+De este modo hemos obtenido dos datasets: \texttt{mytargets} que recoge
+los detalles de cada una de las 30 muestras con las que vamos a
+trabajar, y \texttt{mycounts}, que representa la tabla de contajes de
+estas 30 muestras.
+
 \hypertarget{preprocesado-de-los-datos}{%
 \subsection{Preprocesado de los datos}\label{preprocesado-de-los-datos}}
+
+Para poder identificar los tipos de muestra con mayor facilidad,
+procedemos a renombrar las columnas de \texttt{mycounts} con los nombres
+cortos asignados en la tabla \texttt{mytargets}.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OperatorTok{>}\StringTok{ }\CommentTok{# Primero cambiamos los guiones por puntos}
+\ErrorTok{>}\StringTok{ }\NormalTok{newShortNames <-}\StringTok{ }\KeywordTok{gsub}\NormalTok{(}\StringTok{"_"}\NormalTok{, }\StringTok{"."}\NormalTok{, mytargets}\OperatorTok{$}\NormalTok{ShortName)}
+\OperatorTok{>}\StringTok{ }\NormalTok{mytargets}\OperatorTok{$}\NormalTok{ShortName <-}\StringTok{ }\KeywordTok{gsub}\NormalTok{(}\StringTok{"-"}\NormalTok{, }\StringTok{""}\NormalTok{, newShortNames)}
+\OperatorTok{>}\StringTok{ }
+\ErrorTok{>}\StringTok{ }\CommentTok{# Asignamos los nombres cortos a las columnas de mycounts}
+\ErrorTok{>}\StringTok{ }\KeywordTok{colnames}\NormalTok{(mycounts) <-}\StringTok{ }\NormalTok{mytargets}\OperatorTok{$}\NormalTok{ShortName}
+\end{Highlighting}
+\end{Shaded}
+
+Antes de proceder con el análisis de los datos, debemos evaluar la
+calidad de los datos crudos con los que vamos a trabajar.
 
 \hypertarget{filtraje}{%
 \subsubsection{Filtraje}\label{filtraje}}
@@ -209,6 +247,11 @@ Analysis}'')}{Análisis de significación biológica (``Gene Enrichment Analysis
 \section{Apéndice}\label{apuxe9ndice}}
 
 \hypertarget{bibliografuxeda}{%
-\section{Bibliografía}\label{bibliografuxeda}}
+\section*{Bibliografía}\label{bibliografuxeda}}
+\addcontentsline{toc}{section}{Bibliografía}
+
+\hypertarget{refs}{}
+\leavevmode\hypertarget{ref-GTEx}{}%
+``GTEx Portal.'' n.d. \url{https://www.gtexportal.org/home/}.
 
 \end{document}

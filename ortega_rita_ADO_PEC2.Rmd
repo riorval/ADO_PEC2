@@ -79,10 +79,9 @@ BiocManager::install("rWikiPathways", update = FALSE)
 
 ## Los Datos
 
-Los datos proporcionados en el enunciado provienen del repositorio GTEx (*Genotype-Tissue Expression*), que recoge información de expresión específica de 54 tipos de tejido sano, proveniente de 1000 individuos. Este [portal](https://www.gtexportal.org/home/) permite el acceso a los datos de expresión, imágenes de histología, etc. 
+Los datos proporcionados en el enunciado provienen del repositorio GTEx (*Genotype-Tissue Expression*), que recoge información de expresión específica de 54 tipos de tejido sano, proveniente de 1000 individuos [@GTEx]. Este [**portal**](https://www.gtexportal.org/home/) permite el acceso a los datos de expresión, imágenes de histología, etc. 
 
-
-Obtenemos los datos de targets y counts de los archivos proporcionados en el enunciado.
+Obtenemos los datos de targets y counts de los archivos csv proporcionados en el enunciado: `r params$file1` y `r params$file2`. 
 
 ```{r unzip and load data, include=FALSE}
 library(utils)
@@ -93,14 +92,21 @@ all_targets <- read.csv(file = file.path(params$folder.data, params$file1))
 all_counts <- read.csv2(file = file.path(params$folder.data, params$file2), header = TRUE)
 ```
 
-Con este script extraemos 10 muestras de cada grupo del archivo `r params$file1` y subseteamos las columnas escogidas en el archivo `r params$file2`.
+Estos son datos de expresión (RNA-seq) pertenecientes a un análisis del tiroides, donde se comparan tres tipos de infiltración en `r nrow(all_targets)` muestras:
+
+  - *Not infiltrated tissues* (**NIT**): `r nrow(subset(all_targets, Group == "NIT"))` muestras
+  - *Small focal infiltrates* (**SFI**): `r nrow(subset(all_targets, Group == "SFI"))` muestras
+  - *Extensive lymphoid infiltrates* (**ELI**): `r nrow(subset(all_targets, Group == "ELI"))` muestras
+  
+Con este script extraemos 10 muestras de cada grupo del archivo `r params$file1` y subseteamos las columnas escogidas en el archivo `r params$file2`:
+
 ```{r extraer los datos}
 #Separamos el dataframe que recoge los targets por grupos
 NIT <- subset(all_targets, Group == "NIT")
 SFI <- subset(all_targets, Group == "SFI")
 ELI <- subset(all_targets, Group == "ELI")
 
-#Seleccionamos 10 muestras de cada grupo y las unimos en un único #dataframe que recoge los targets con los que trabajaremos
+#Seleccionamos 10 muestras de cada grupo y las unimos en un único dataframe que recoge los targets con los que trabajaremos
 set.seed(params$seed.extract)
 NIT10 <- NIT[sample(nrow(NIT), size = 10, replace = FALSE),]
 SFI10 <- SFI[sample(nrow(SFI), size = 10, replace = FALSE),]
@@ -108,14 +114,43 @@ ELI10 <- ELI[sample(nrow(ELI), size = 10, replace = FALSE),]
 
 mytargets <- rbind(NIT10, SFI10, ELI10, deparse.level = 0)
 
-#Extraemos los nombres de las muestras y cambiamos los guiones #por puntos para que coincidan con los nombres de las muestras en #el dataframe de counts
+#Extraemos los nombres de las muestras y cambiamos los guiones por puntos para que coincidan con los nombres de las muestras en el dataframe de counts
 sample_names <- mytargets[,3]
 s_names <- gsub("-", ".", sample_names)
 
 #Subseteamos las columans escogidas del dataframe de counts
 mycounts <- dplyr::select(all_counts, s_names)
+row.names(mycounts) <- all_counts$X
 ```
+
+De este modo hemos obtenido dos datasets: `mytargets` que recoge los detalles de cada una de las `r nrow(mytargets)` muestras con las que vamos a trabajar, y `mycounts`, que representa la tabla de contajes de estas `r ncol(mycounts)` muestras.
+
 ## Preprocesado de los datos
+
+Para poder identificar los tipos de muestra con mayor facilidad, procedemos a renombrar las columnas de `mycounts` con los nombres cortos asignados en la tabla `mytargets`. 
+
+```{r renombrar columnas}
+#Primero cambiamos los guiones por puntos
+newShortNames <-  gsub("_", ".", mytargets$ShortName)
+mytargets$ShortName <- gsub("-", "", newShortNames)
+
+#Asignamos los nombres cortos a las columnas de mycounts
+colnames(mycounts) <- mytargets$ShortName
+```
+
+De este modo, nuestros datos de contaje quedan así: 
+
+```{r mycounts head}
+head(mycounts)
+```
+
+Antes de proceder con el análisis de los datos, debemos evaluar la calidad de los datos crudos con los que vamos a trabajar, para detectar cualquier fallo técnico que pueda afectar a la interpretación de los datos. Analizaremos la calidad de los datos con representaciones gráficas, y dado que los datos resultantes de contajes suelen estar altamente sesgados, aplicaremos previamente una transformación logarítmica en base 2 para "normalizar" los datos. Además hemos de tener en cuenta que algunos de los contajes resultan en 0, para que ello no suponga un problema tomaremos *preudocounts*, transformando todos los ceros en 1, para que no den problema en la transformación logarítmica. 
+
+```{r visual log2 pseudocounts}
+pseudoCounts <- log2(mycounts)
+
+
+```
 
 ### Filtraje
 
