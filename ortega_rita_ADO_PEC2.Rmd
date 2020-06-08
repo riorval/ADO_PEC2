@@ -61,6 +61,8 @@ BiocManager::install()
 
 BiocManager::install("limma")
 BiocManager::install("edgeR")
+BiocManager::install("mixOmics")
+BiocManager::install("DESeq")
 
 BiocManager::install("GEOquery")
 BiocManager::install("oligo")
@@ -168,13 +170,13 @@ ggplot(pseudoCounts, aes(x= pseudoCounts2[,1])) + ylab("CPM") + xlab(names(mycou
 
 Para poder visualizar la distribución de los datos de las 30 muestras con las que trabajamos, las representamos en forma de boxplot: 
 
-```{r boxplot rawdata pseudocounts, echo=FALSE}
+```{r boxplot_rawdata_pseudocounts, echo=FALSE}
 boxplot(pseudoCounts, which = "all", las=2,
         col = c(rep("yellow1",10), rep("olivedrab1",10),
                 rep("skyblue1",10)),
         main = "Distribución de contajes de pseudoCounts")
 ```
-```{r boxplot rawdata pseudocounts2, echo=FALSE}
+```{r boxplot_rawdata_pseudocounts2, echo=FALSE}
 boxplot(pseudoCounts2, which = "all", las=2,
         col = c(rep("yellow1",10), rep("olivedrab1",10),
                 rep("skyblue1",10)),
@@ -183,7 +185,7 @@ boxplot(pseudoCounts2, which = "all", las=2,
 
 Representamos los datos en gráficos de densidades para detectar si pudiera haber modos secundarios de la distribución de los datos:
 
-```{r density plot, echo=FALSE, fig.cap="Gráficos de densidades que muestra las densidades empíricas de las muestras individuales dentro de cada una de las tres condiciones experimentales"}
+```{r density_plot, echo=FALSE, fig.cap="Gráficos de densidades que muestra las densidades empíricas de las muestras individuales dentro de cada una de las tres condiciones experimentales"}
 pseudoCount_df = reshape2::melt(pseudoCounts, variable.name = "Samples")
 pseudoCount_df = data.frame(pseudoCount_df, Condition = substr(pseudoCount_df$Samples, 1, 3))
 
@@ -212,7 +214,7 @@ myMAplot <- function(dataset, numberX, numberY){
 }
 ```
 
-```{r myMAplot group 1, include=FALSE}
+```{r myMAplots, include=FALSE}
 library(cowplot)
 
 MA_NIT_1_2 <- myMAplot(pseudoCounts, 1, 2)
@@ -228,18 +230,52 @@ MA_ELI_23_25 <- myMAplot(pseudoCounts, 23, 25)
 MA_ELI_26_28 <- myMAplot(pseudoCounts, 26, 28)
 ```             
 
-```{r MAplot NIT, echo=FALSE, fig.cap="Representación MA de tres comparaciones entre muestras del grupo NIT", fig.height= 3}
+```{r MAplot_NIT, echo=FALSE, fig.cap="Representación MA de tres comparaciones entre muestras del grupo NIT", fig.height= 3}
 plot_grid(MA_NIT_1_2, MA_NIT_3_4, MA_NIT_5_6, align = "h", nrow = 1, ncol = 3)
 ```
 
-```{r MAplot SFI, echo=FALSE, fig.cap="Representación MA de tres comparaciones entre muestras del grupo SFI",  fig.height= 3}
+```{r MAplot_SFI, echo=FALSE, fig.cap="Representación MA de tres comparaciones entre muestras del grupo SFI",  fig.height= 3}
 plot_grid(MA_SFI_10_11, MA_SFI_15_16, MA_SFI_18_19, align = "h", nrow = 1, ncol = 3)
 ```
 
-```{r MAplot ELI, echo=FALSE, fig.cap="Representación MA de tres comparaciones entre muestras del grupo ELI",  fig.height= 3}
+```{r MAplot_ELI, echo=FALSE, fig.cap="Representación MA de tres comparaciones entre muestras del grupo ELI",  fig.height= 3}
 plot_grid(MA_ELI_20_22, MA_ELI_23_25, MA_ELI_26_28, align = "h", nrow = 1, ncol = 3)
 ```
 
+Para ver qué muestras son más similares entre sí, las representamos en un heatmap: 
+
+```{r heatmap_pseudocount, echo=FALSE}
+targets_datatype <- substr(mytargets$molecular_data_type, 1, 3)
+HMpseudoCounts <- pseudoCounts
+colnames(HMpseudoCounts) <- paste(colnames(pseudoCounts), targets_datatype, mytargets$sex, sep = ":")
+HMpseudoCounts <- as.matrix(dist(t(HMpseudoCounts)))
+HMpseudoCounts <- HMpseudoCounts/max(HMpseudoCounts)
+
+library(mixOmics)
+cim(HMpseudoCounts, symkey = FALSE, margins = c(9,9))
+```
+
+Mediante un análisis de componentes principales (PCA, *Principal Component Analysis*), podremos visualizar los efectos de las diferentes condiciones experimentales y detectar *batch effects*:
+
+```{r PCAprepare}
+library(matrixStats)
+
+row_variance <- rowVars(as.matrix(pseudoCounts))
+select_vari <- order(row_variance, decreasing = TRUE)[1:25000]
+pca_raw <- prcomp(t(pseudoCounts[select_vari,]))
+```
+
+```{r plotPCA_raw}
+library(DESeq)
+grupo <- mytargets$Group
+datatype <- substr(mytargets$molecular_data_type, 1, 3)
+sexo <- mytargets$sex
+anot <- AnnotatedDataFrame(data = data.frame(grupo, datatype, sexo, row.names = colnames(pseudoCounts)))
+exprSetpseudoCounts <- new("ExpressionSet", exprs = as.matrix(pseudoCounts), phenoData= anot)
+
+plotPCA(exprSetpseudoCounts, intgroup = c("grupo", "datatype"))
+plotPCA(exprSetpseudoCounts, intgroup = c("grupo", "sexo"))
+```
 
 ### Filtraje
 
