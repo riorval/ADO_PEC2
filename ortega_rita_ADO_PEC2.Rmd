@@ -42,13 +42,14 @@ usePackage <- function(paq) {
 }
 
 usePackage("knitr")
+usePackage("ggplot2")
 
-
+if(!require(locfit)) install.packages("locfit", type = "source")
 
 if(!require(kableExtra)) install.packages('kableExtra',  repos = 'http://cran.rstudio.com')
 
 if(!require(printr)) install.packages('printr', type = 'source',repos = c('http://yihui.name/xran','http://cran.rstudio.com'))
-if(!require(ggplot2)) install.packages('ggplot2', repos = 'http://cran.rstudio.com')
+
 if(!require(ggrepel)) install.packages('ggrepel', repos = 'http://cran.rstudio.com')
 ```
 
@@ -59,11 +60,12 @@ BiocManager::install()
 #Paquetes de Bioconductor necesarios para el análisis:
 
 BiocManager::install("limma")
+BiocManager::install("edgeR")
+
 BiocManager::install("GEOquery")
 BiocManager::install("oligo")
 BiocManager::install("pd.mogene.2.1.st")
 BiocManager::install("RSQLite")
-BiocManager::install("arrayQualityMetrics")
 BiocManager::install("pvca")
 BiocManager::install("mogene21sttranscriptcluster.db")
 BiocManager::install("magrittr")
@@ -127,15 +129,15 @@ De este modo hemos obtenido dos datasets: `mytargets` que recoge los detalles de
 
 ## Preprocesado de los datos
 
-Para poder identificar los tipos de muestra con mayor facilidad, procedemos a renombrar las columnas de `mycounts` con los nombres cortos asignados en la tabla `mytargets`. 
+Para poder identificar los tipos de muestra con mayor facilidad, procedemos a renombrar las columnas de `mycounts` con nombres cortos indicativos de a qué grupo pertenecen, y también lo asignamos a `mytargets`. 
 
 ```{r renombrar columnas}
-#Primero cambiamos los guiones por puntos
-newShortNames <-  gsub("_", ".", mytargets$ShortName)
-mytargets$ShortName <- gsub("-", "", newShortNames)
 
-#Asignamos los nombres cortos a las columnas de mycounts
-colnames(mycounts) <- mytargets$ShortName
+newShortNames <- c(paste0("NIT", 1:10), paste0("SFI", 1:10), paste0("ELI", 1:10))
+mytargets <- cbind(mytargets, newShortNames)
+
+#Asignamos los nuevos nombres cortos a las columnas de mycounts
+colnames(mycounts) <- mytargets$newShortNames
 ```
 
 De este modo, nuestros datos de contaje quedan así: 
@@ -144,12 +146,46 @@ De este modo, nuestros datos de contaje quedan así:
 head(mycounts)
 ```
 
-Antes de proceder con el análisis de los datos, debemos evaluar la calidad de los datos crudos con los que vamos a trabajar, para detectar cualquier fallo técnico que pueda afectar a la interpretación de los datos. Analizaremos la calidad de los datos con representaciones gráficas, y dado que los datos resultantes de contajes suelen estar altamente sesgados, aplicaremos previamente una transformación logarítmica en base 2 para "normalizar" los datos. Además hemos de tener en cuenta que algunos de los contajes resultan en 0, para que ello no suponga un problema tomaremos *preudocounts*, transformando todos los ceros en 1, para que no den problema en la transformación logarítmica. 
+Antes de proceder con el análisis de los datos, debemos evaluar la calidad de los datos crudos con los que vamos a trabajar, para detectar cualquier fallo técnico que pueda afectar a la interpretación de los datos. Analizaremos la calidad de los datos con representaciones gráficas, y dado que los datos resultantes de contajes suelen estar altamente sesgados, aplicaremos previamente una transformación logarítmica en base 2 para "normalizar" los datos. Además hemos de tener en cuenta que algunos de los contajes resultan en 0, para que ello no suponga un problema tomaremos *pseudocounts*, sumando una constante en todos los contajes, para que no den problema en la transformación logarítmica. 
 
 ```{r visual log2 pseudocounts}
-pseudoCounts <- log2(mycounts)
+pseudoCounts <- log2(mycounts +1)
 
+library(ggplot2)
 
+ggplot(pseudoCounts, aes(x= pseudoCounts[,1])) + ylab(expression(log[2](count +1))) + xlab(names(pseudoCounts)[1]) + geom_histogram(colour = "white", fill = "#525252", binwidth = 0.6)
+```
+
+Esta transformación logarítmica podría no ser suficiente para evaluar realmente cómo se distribuyen los datos, ya que los datos procedentes de RNA-seq no son homocedásticos, sino que su varianza aumenta según aumenta la media. Intentamos utilizar una función especializada del paquete `edgeR` para hacer una transformación de los datos y comparamos los resultados: 
+
+```{r cpm pseudocount}
+library(edgeR)
+pseudoCounts2 <- cpm(mycounts, prior.count = 2, log = TRUE)
+
+library(ggplot2)
+ggplot(pseudoCounts, aes(x= pseudoCounts2[,1])) + ylab("CPM") + xlab(names(mycounts)[1]) + geom_histogram(colour = "white", fill = "#525252", binwidth = 0.6)
+```
+
+Para poder visualizar la distribución de los datos de las 30 muestras con las que trabajamos, las representamos en forma de boxplot: 
+
+```{r boxplot rawdata pseudocounts, echo=FALSE}
+boxplot(pseudoCounts, which = "all", las=2,
+        col = c(rep("yellow1",10), rep("olivedrab1",10),
+                rep("skyblue1",10)),
+        main = "Distribución de contajes de pseudoCounts")
+```
+```{r boxplot rawdata pseudocounts2, echo=FALSE}
+boxplot(pseudoCounts2, which = "all", las=2,
+        col = c(rep("yellow1",10), rep("olivedrab1",10),
+                rep("skyblue1",10)),
+        main = "Distribución de contajes de pseudoCounts2 (con edgeR)")
+```
+
+```{r density plot de medias, echo=FALSE, fig.cap="Gráficos de densidades que muestra las densidades empíricas de las muestras individuales dentro de cada una de las tres condiciones experimentales"}
+pseudoCount_df = reshape2::melt(pseudoCounts, variable.name = "Samples")
+pseudoCount_df = data.frame(pseudoCount_df, Condition = substr(pseudoCount_df$Samples, 1, 3))
+
+ggplot(pseudoCount_df, aes(x=value, colour = Samples, fill = Samples)) + ylim(c(0, 0.25)) + geom_density(alpha = 0.2, size = 1.25) + facet_wrap(~ Condition) + theme(legend.position = "top") + xlab(expression(log[2](count + 1)))
 ```
 
 ### Filtraje

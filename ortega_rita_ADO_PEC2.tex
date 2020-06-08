@@ -100,6 +100,20 @@
 \providecommand{\tightlist}{%
   \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
 \setcounter{secnumdepth}{5}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{wrapfig}
+\usepackage{float}
+\usepackage{colortbl}
+\usepackage{pdflscape}
+\usepackage{tabu}
+\usepackage{threeparttable}
+\usepackage{threeparttablex}
+\usepackage[normalem]{ulem}
+\usepackage{makecell}
+\usepackage{xcolor}
 \ifxetex
   % Load polyglossia as late as possible: uses bidi with RTL langages (e.g. Hebrew, Arabic)
   \usepackage{polyglossia}
@@ -110,7 +124,7 @@
 
 \title{PEC2 Análisis de Datos Ómicos}
 \author{Rita Ortega Vallbona}
-\date{6 de junio, 2020}
+\date{7 de junio, 2020}
 
 \begin{document}
 \maketitle
@@ -166,7 +180,7 @@ counts.csv:
 \OperatorTok{>}\StringTok{ }\NormalTok{ELI <-}\StringTok{ }\KeywordTok{subset}\NormalTok{(all_targets, Group }\OperatorTok{==}\StringTok{ "ELI"}\NormalTok{)}
 \OperatorTok{>}\StringTok{ }
 \ErrorTok{>}\StringTok{ }\CommentTok{# Seleccionamos 10 muestras de cada grupo y las unimos en un}
-\ErrorTok{>}\StringTok{ }\CommentTok{# único #dataframe que recoge los targets con los que}
+\ErrorTok{>}\StringTok{ }\CommentTok{# único dataframe que recoge los targets con los que}
 \ErrorTok{>}\StringTok{ }\CommentTok{# trabajaremos}
 \ErrorTok{>}\StringTok{ }\KeywordTok{set.seed}\NormalTok{(params}\OperatorTok{$}\NormalTok{seed.extract)}
 \OperatorTok{>}\StringTok{ }\NormalTok{NIT10 <-}\StringTok{ }\NormalTok{NIT[}\KeywordTok{sample}\NormalTok{(}\KeywordTok{nrow}\NormalTok{(NIT), }\DataTypeTok{size =} \DecValTok{10}\NormalTok{, }\DataTypeTok{replace =} \OtherTok{FALSE}\NormalTok{), ]}
@@ -176,8 +190,8 @@ counts.csv:
 \ErrorTok{>}\StringTok{ }\NormalTok{mytargets <-}\StringTok{ }\KeywordTok{rbind}\NormalTok{(NIT10, SFI10, ELI10, }\DataTypeTok{deparse.level =} \DecValTok{0}\NormalTok{)}
 \OperatorTok{>}\StringTok{ }
 \ErrorTok{>}\StringTok{ }\CommentTok{# Extraemos los nombres de las muestras y cambiamos los}
-\ErrorTok{>}\StringTok{ }\CommentTok{# guiones #por puntos para que coincidan con los nombres de}
-\ErrorTok{>}\StringTok{ }\CommentTok{# las muestras en #el dataframe de counts}
+\ErrorTok{>}\StringTok{ }\CommentTok{# guiones por puntos para que coincidan con los nombres de}
+\ErrorTok{>}\StringTok{ }\CommentTok{# las muestras en el dataframe de counts}
 \ErrorTok{>}\StringTok{ }\NormalTok{sample_names <-}\StringTok{ }\NormalTok{mytargets[, }\DecValTok{3}\NormalTok{]}
 \OperatorTok{>}\StringTok{ }\NormalTok{s_names <-}\StringTok{ }\KeywordTok{gsub}\NormalTok{(}\StringTok{"-"}\NormalTok{, }\StringTok{"."}\NormalTok{, sample_names)}
 \OperatorTok{>}\StringTok{ }
@@ -196,22 +210,108 @@ estas 30 muestras.
 \subsection{Preprocesado de los datos}\label{preprocesado-de-los-datos}}
 
 Para poder identificar los tipos de muestra con mayor facilidad,
-procedemos a renombrar las columnas de \texttt{mycounts} con los nombres
-cortos asignados en la tabla \texttt{mytargets}.
+procedemos a renombrar las columnas de \texttt{mycounts} con nombres
+cortos indicativos de a qué grupo pertenecen, y también lo asignamos a
+\texttt{mytargets}.
 
 \begin{Shaded}
 \begin{Highlighting}[]
-\OperatorTok{>}\StringTok{ }\CommentTok{# Primero cambiamos los guiones por puntos}
-\ErrorTok{>}\StringTok{ }\NormalTok{newShortNames <-}\StringTok{ }\KeywordTok{gsub}\NormalTok{(}\StringTok{"_"}\NormalTok{, }\StringTok{"."}\NormalTok{, mytargets}\OperatorTok{$}\NormalTok{ShortName)}
-\OperatorTok{>}\StringTok{ }\NormalTok{mytargets}\OperatorTok{$}\NormalTok{ShortName <-}\StringTok{ }\KeywordTok{gsub}\NormalTok{(}\StringTok{"-"}\NormalTok{, }\StringTok{""}\NormalTok{, newShortNames)}
+\OperatorTok{>}\StringTok{ }\NormalTok{newShortNames <-}\StringTok{ }\KeywordTok{c}\NormalTok{(}\KeywordTok{paste0}\NormalTok{(}\StringTok{"NIT"}\NormalTok{, }\DecValTok{1}\OperatorTok{:}\DecValTok{10}\NormalTok{), }\KeywordTok{paste0}\NormalTok{(}\StringTok{"SFI"}\NormalTok{, }\DecValTok{1}\OperatorTok{:}\DecValTok{10}\NormalTok{), }
+\OperatorTok{+}\StringTok{     }\KeywordTok{paste0}\NormalTok{(}\StringTok{"ELI"}\NormalTok{, }\DecValTok{1}\OperatorTok{:}\DecValTok{10}\NormalTok{))}
+\OperatorTok{>}\StringTok{ }\NormalTok{mytargets <-}\StringTok{ }\KeywordTok{cbind}\NormalTok{(mytargets, newShortNames)}
 \OperatorTok{>}\StringTok{ }
-\ErrorTok{>}\StringTok{ }\CommentTok{# Asignamos los nombres cortos a las columnas de mycounts}
-\ErrorTok{>}\StringTok{ }\KeywordTok{colnames}\NormalTok{(mycounts) <-}\StringTok{ }\NormalTok{mytargets}\OperatorTok{$}\NormalTok{ShortName}
+\ErrorTok{>}\StringTok{ }\CommentTok{# Asignamos los nuevos nombres cortos a las columnas de}
+\ErrorTok{>}\StringTok{ }\CommentTok{# mycounts}
+\ErrorTok{>}\StringTok{ }\KeywordTok{colnames}\NormalTok{(mycounts) <-}\StringTok{ }\NormalTok{mytargets}\OperatorTok{$}\NormalTok{newShortNames}
 \end{Highlighting}
 \end{Shaded}
 
+De este modo, nuestros datos de contaje quedan así:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OperatorTok{>}\StringTok{ }\KeywordTok{head}\NormalTok{(mycounts)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{tabular}{l|r|r|r|r|r|r|r|r|r|r|r|r|r|r|r|r|r|r|r|r|r|r|r|r|r|r|r|r|r|r}
+\hline
+  & NIT1 & NIT2 & NIT3 & NIT4 & NIT5 & NIT6 & NIT7 & NIT8 & NIT9 & NIT10 & SFI1 & SFI2 & SFI3 & SFI4 & SFI5 & SFI6 & SFI7 & SFI8 & SFI9 & SFI10 & ELI1 & ELI2 & ELI3 & ELI4 & ELI5 & ELI6 & ELI7 & ELI8 & ELI9 & ELI10\\
+\hline
+ENSG00000223972.4 & 1 & 0 & 2 & 1 & 2 & 0 & 4 & 4 & 5 & 3 & 5 & 3 & 2 & 7 & 1 & 8 & 1 & 0 & 2 & 3 & 3 & 3 & 5 & 4 & 1 & 0 & 0 & 6 & 1 & 2\\
+\hline
+ENSG00000227232.4 & 584 & 1487 & 412 & 800 & 542 & 1325 & 513 & 852 & 1034 & 487 & 656 & 533 & 491 & 1000 & 483 & 548 & 1064 & 426 & 679 & 426 & 1301 & 979 & 489 & 1325 & 474 & 834 & 419 & 1003 & 775 & 423\\
+\hline
+ENSG00000243485.2 & 0 & 1 & 0 & 2 & 1 & 2 & 9 & 4 & 5 & 1 & 1 & 1 & 2 & 2 & 0 & 11 & 2 & 3 & 2 & 1 & 1 & 3 & 1 & 1 & 1 & 1 & 0 & 1 & 2 & 0\\
+\hline
+ENSG00000237613.2 & 0 & 0 & 1 & 2 & 0 & 0 & 10 & 4 & 5 & 2 & 1 & 0 & 0 & 5 & 0 & 6 & 0 & 4 & 4 & 1 & 0 & 2 & 3 & 0 & 0 & 1 & 1 & 2 & 0 & 0\\
+\hline
+ENSG00000268020.2 & 0 & 0 & 0 & 0 & 0 & 0 & 3 & 1 & 0 & 0 & 0 & 0 & 0 & 3 & 0 & 1 & 2 & 1 & 0 & 1 & 0 & 5 & 2 & 2 & 1 & 0 & 0 & 0 & 0 & 2\\
+\hline
+ENSG00000240361.1 & 1 & 2 & 0 & 1 & 0 & 0 & 4 & 3 & 3 & 0 & 1 & 0 & 0 & 5 & 0 & 4 & 2 & 1 & 1 & 2 & 1 & 8 & 1 & 1 & 1 & 0 & 0 & 1 & 0 & 1\\
+\hline
+\end{tabular}
+
 Antes de proceder con el análisis de los datos, debemos evaluar la
-calidad de los datos crudos con los que vamos a trabajar.
+calidad de los datos crudos con los que vamos a trabajar, para detectar
+cualquier fallo técnico que pueda afectar a la interpretación de los
+datos. Analizaremos la calidad de los datos con representaciones
+gráficas, y dado que los datos resultantes de contajes suelen estar
+altamente sesgados, aplicaremos previamente una transformación
+logarítmica en base 2 para ``normalizar'' los datos. Además hemos de
+tener en cuenta que algunos de los contajes resultan en 0, para que ello
+no suponga un problema tomaremos \emph{pseudocounts}, sumando una
+constante en todos los contajes, para que no den problema en la
+transformación logarítmica.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OperatorTok{>}\StringTok{ }\NormalTok{pseudoCounts <-}\StringTok{ }\KeywordTok{log2}\NormalTok{(mycounts }\OperatorTok{+}\StringTok{ }\DecValTok{1}\NormalTok{)}
+\OperatorTok{>}\StringTok{ }
+\ErrorTok{>}\StringTok{ }\KeywordTok{library}\NormalTok{(ggplot2)}
+\OperatorTok{>}\StringTok{ }
+\ErrorTok{>}\StringTok{ }\KeywordTok{ggplot}\NormalTok{(pseudoCounts, }\KeywordTok{aes}\NormalTok{(}\DataTypeTok{x =}\NormalTok{ pseudoCounts[, }\DecValTok{1}\NormalTok{])) }\OperatorTok{+}\StringTok{ }\KeywordTok{ylab}\NormalTok{(}\KeywordTok{expression}\NormalTok{(log[}\DecValTok{2}\NormalTok{](count }\OperatorTok{+}\StringTok{ }
+\OperatorTok{+}\StringTok{     }\DecValTok{1}\NormalTok{))) }\OperatorTok{+}\StringTok{ }\KeywordTok{xlab}\NormalTok{(}\KeywordTok{names}\NormalTok{(pseudoCounts)[}\DecValTok{1}\NormalTok{]) }\OperatorTok{+}\StringTok{ }\KeywordTok{geom_histogram}\NormalTok{(}\DataTypeTok{colour =} \StringTok{"white"}\NormalTok{, }
+\OperatorTok{+}\StringTok{     }\DataTypeTok{fill =} \StringTok{"#525252"}\NormalTok{, }\DataTypeTok{binwidth =} \FloatTok{0.6}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{ortega_rita_ADO_PEC2_files/figure-latex/visual log2 pseudocounts-1.pdf}
+
+Esta transformación logarítmica podría no ser suficiente para evaluar
+realmente cómo se distribuyen los datos, ya que los datos procedentes de
+RNA-seq no son homocedásticos, sino que su varianza aumenta según
+aumenta la media. Intentamos utilizar una función especializada del
+paquete \texttt{edgeR} para hacer una transformación de los datos y
+comparamos los resultados:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OperatorTok{>}\StringTok{ }\KeywordTok{library}\NormalTok{(edgeR)}
+\OperatorTok{>}\StringTok{ }\NormalTok{pseudoCounts2 <-}\StringTok{ }\KeywordTok{cpm}\NormalTok{(mycounts, }\DataTypeTok{prior.count =} \DecValTok{2}\NormalTok{, }\DataTypeTok{log =} \OtherTok{TRUE}\NormalTok{)}
+\OperatorTok{>}\StringTok{ }
+\ErrorTok{>}\StringTok{ }\KeywordTok{library}\NormalTok{(ggplot2)}
+\OperatorTok{>}\StringTok{ }\KeywordTok{ggplot}\NormalTok{(pseudoCounts, }\KeywordTok{aes}\NormalTok{(}\DataTypeTok{x =}\NormalTok{ pseudoCounts2[, }\DecValTok{1}\NormalTok{])) }\OperatorTok{+}\StringTok{ }\KeywordTok{ylab}\NormalTok{(}\StringTok{"CPM"}\NormalTok{) }\OperatorTok{+}\StringTok{ }
+\OperatorTok{+}\StringTok{     }\KeywordTok{xlab}\NormalTok{(}\KeywordTok{names}\NormalTok{(mycounts)[}\DecValTok{1}\NormalTok{]) }\OperatorTok{+}\StringTok{ }\KeywordTok{geom_histogram}\NormalTok{(}\DataTypeTok{colour =} \StringTok{"white"}\NormalTok{, }
+\OperatorTok{+}\StringTok{     }\DataTypeTok{fill =} \StringTok{"#525252"}\NormalTok{, }\DataTypeTok{binwidth =} \FloatTok{0.6}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{ortega_rita_ADO_PEC2_files/figure-latex/cpm pseudocount-1.pdf}
+
+Para poder visualizar la distribución de los datos de las 30 muestras
+con las que trabajamos, las representamos en forma de boxplot:
+
+\includegraphics{ortega_rita_ADO_PEC2_files/figure-latex/boxplot rawdata pseudocounts-1.pdf}
+\includegraphics{ortega_rita_ADO_PEC2_files/figure-latex/boxplot rawdata pseudocounts2-1.pdf}
+
+\begin{figure}
+\centering
+\includegraphics{ortega_rita_ADO_PEC2_files/figure-latex/histogramas de medias-1.pdf}
+\caption{Gráficos de densidades que muestra las densidades empíricas de
+las muestras individuales dentro de cada una de las tres condiciones
+experimentales}
+\end{figure}
 
 \hypertarget{filtraje}{%
 \subsubsection{Filtraje}\label{filtraje}}

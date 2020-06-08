@@ -4,3 +4,6 @@ kableExtra
 printr
 ggplot2
 ggrepel
+locfit
+limma
+edgeR
