@@ -124,7 +124,7 @@
 
 \title{PEC2 Análisis de Datos Ómicos}
 \author{Rita Ortega Vallbona}
-\date{7 de junio, 2020}
+\date{8 de junio, 2020}
 
 \begin{document}
 \maketitle
@@ -305,16 +305,60 @@ con las que trabajamos, las representamos en forma de boxplot:
 \includegraphics{ortega_rita_ADO_PEC2_files/figure-latex/boxplot rawdata pseudocounts-1.pdf}
 \includegraphics{ortega_rita_ADO_PEC2_files/figure-latex/boxplot rawdata pseudocounts2-1.pdf}
 
+Representamos los datos en gráficos de densidades para detectar si
+pudiera haber modos secundarios de la distribución de los datos:
+
 \begin{figure}
 \centering
-\includegraphics{ortega_rita_ADO_PEC2_files/figure-latex/histogramas de medias-1.pdf}
+\includegraphics{ortega_rita_ADO_PEC2_files/figure-latex/density plot-1.pdf}
 \caption{Gráficos de densidades que muestra las densidades empíricas de
 las muestras individuales dentro de cada una de las tres condiciones
 experimentales}
 \end{figure}
 
-\hypertarget{filtraje}{%
-\subsubsection{Filtraje}\label{filtraje}}
+Para comprobar la reproducibilidad de las muestras, representamos los
+MA-plots para comparar muestras entre sí:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OperatorTok{>}\StringTok{ }\NormalTok{myMAplot <-}\StringTok{ }\ControlFlowTok{function}\NormalTok{(dataset, numberX, numberY) \{}
+\OperatorTok{+}\StringTok{     }\NormalTok{data <-}\StringTok{ }\NormalTok{dataset}
+\OperatorTok{+}\StringTok{     }
+\OperatorTok{+}\StringTok{     }\NormalTok{nameX <-}\StringTok{ }\KeywordTok{names}\NormalTok{(data)[numberX]}
+\OperatorTok{+}\StringTok{     }\NormalTok{nameY <-}\StringTok{ }\KeywordTok{names}\NormalTok{(data)[numberY]}
+\OperatorTok{+}\StringTok{     }
+\OperatorTok{+}\StringTok{     }\NormalTok{x <-}\StringTok{ }\NormalTok{data[, numberX]}
+\OperatorTok{+}\StringTok{     }\NormalTok{y <-}\StringTok{ }\NormalTok{data[, numberY]}
+\OperatorTok{+}\StringTok{     }
+\OperatorTok{+}\StringTok{     }\NormalTok{M =}\StringTok{ }\NormalTok{x }\OperatorTok{-}\StringTok{ }\NormalTok{y}
+\OperatorTok{+}\StringTok{     }\NormalTok{A =}\StringTok{ }\NormalTok{(x }\OperatorTok{+}\StringTok{ }\NormalTok{y)}\OperatorTok{/}\DecValTok{2}
+\OperatorTok{+}\StringTok{     }
+\OperatorTok{+}\StringTok{     }\NormalTok{dfMA <-}\StringTok{ }\KeywordTok{data.frame}\NormalTok{(A, M)}
+\OperatorTok{+}\StringTok{     }
+\OperatorTok{+}\StringTok{     }\KeywordTok{library}\NormalTok{(ggplot2)}
+\OperatorTok{+}\StringTok{     }\KeywordTok{ggplot}\NormalTok{(dfMA, }\KeywordTok{aes}\NormalTok{(}\DataTypeTok{x =}\NormalTok{ A, }\DataTypeTok{y =}\NormalTok{ M)) }\OperatorTok{+}\StringTok{ }\KeywordTok{geom_point}\NormalTok{(}\DataTypeTok{size =} \FloatTok{1.5}\NormalTok{, }
+\OperatorTok{+}\StringTok{         }\DataTypeTok{alpha =} \DecValTok{1}\OperatorTok{/}\DecValTok{5}\NormalTok{) }\OperatorTok{+}\StringTok{ }\KeywordTok{stat_smooth}\NormalTok{(}\DataTypeTok{se =}\NormalTok{ F, }\DataTypeTok{method =} \StringTok{"loess"}\NormalTok{, }
+\OperatorTok{+}\StringTok{         }\DataTypeTok{color =} \StringTok{"red3"}\NormalTok{) }\OperatorTok{+}\StringTok{ }\KeywordTok{ggtitle}\NormalTok{(}\KeywordTok{paste}\NormalTok{(nameX, }\StringTok{" vs "}\NormalTok{, nameY))}
+\OperatorTok{+}\StringTok{ }\NormalTok{\}}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{figure}
+\centering
+\includegraphics{ortega_rita_ADO_PEC2_files/figure-latex/MAplot NIT-1.pdf}
+\caption{Representación MA de tres comparaciones entre muestras del
+grupo NIT}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics{ortega_rita_ADO_PEC2_files/figure-latex/MAplot SFI-1.pdf}
+\caption{Representación MA de tres comparaciones entre muestras del
+grupo SFI}
+\end{figure}
+
+\includegraphics{ortega_rita_ADO_PEC2_files/figure-latex/MAplot ELI-1.pdf}
+\#\#\# Filtraje
 
 \hypertarget{normalizaciuxf3n}{%
 \subsubsection{Normalización}\label{normalizaciuxf3n}}

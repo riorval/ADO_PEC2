@@ -181,12 +181,65 @@ boxplot(pseudoCounts2, which = "all", las=2,
         main = "Distribución de contajes de pseudoCounts2 (con edgeR)")
 ```
 
-```{r density plot de medias, echo=FALSE, fig.cap="Gráficos de densidades que muestra las densidades empíricas de las muestras individuales dentro de cada una de las tres condiciones experimentales"}
+Representamos los datos en gráficos de densidades para detectar si pudiera haber modos secundarios de la distribución de los datos:
+
+```{r density plot, echo=FALSE, fig.cap="Gráficos de densidades que muestra las densidades empíricas de las muestras individuales dentro de cada una de las tres condiciones experimentales"}
 pseudoCount_df = reshape2::melt(pseudoCounts, variable.name = "Samples")
 pseudoCount_df = data.frame(pseudoCount_df, Condition = substr(pseudoCount_df$Samples, 1, 3))
 
 ggplot(pseudoCount_df, aes(x=value, colour = Samples, fill = Samples)) + ylim(c(0, 0.25)) + geom_density(alpha = 0.2, size = 1.25) + facet_wrap(~ Condition) + theme(legend.position = "top") + xlab(expression(log[2](count + 1)))
 ```
+
+Para comprobar la reproducibilidad de las muestras, representamos los MA-plots para comparar muestras entre sí:
+
+```{r myMAplot}
+myMAplot <- function(dataset, numberX, numberY){
+  data <- dataset
+  
+  nameX <- names(data)[numberX]
+  nameY <- names(data)[numberY]
+  
+  x <- data[,numberX]
+  y <- data[,numberY]
+  
+  M = x - y
+  A = (x+y)/2
+  
+  dfMA <- data.frame(A,M)
+  
+  library(ggplot2)
+  ggplot(dfMA, aes(x=A, y=M)) + geom_point(size = 1.5, alpha = 1/5)  + stat_smooth(se = F, method = "loess", color = "red3") + ggtitle(paste(nameX, " vs ", nameY))
+}
+```
+
+```{r myMAplot group 1, include=FALSE}
+library(cowplot)
+
+MA_NIT_1_2 <- myMAplot(pseudoCounts, 1, 2)
+MA_NIT_3_4 <- myMAplot(pseudoCounts, 3, 4)
+MA_NIT_5_6 <- myMAplot(pseudoCounts, 5, 6)
+
+MA_SFI_11_12 <- myMAplot(pseudoCounts, 11, 12)
+MA_SFI_15_16 <- myMAplot(pseudoCounts, 15, 16)
+MA_SFI_18_19 <- myMAplot(pseudoCounts, 18, 19)
+
+MA_ELI_21_22 <- myMAplot(pseudoCounts, 21, 22)
+MA_ELI_23_25 <- myMAplot(pseudoCounts, 23, 25)
+MA_ELI_26_28 <- myMAplot(pseudoCounts, 26, 28)
+```             
+
+```{r MAplot NIT, echo=FALSE, fig.cap="Representación MA de tres comparaciones entre muestras del grupo NIT", fig.height= 3}
+plot_grid(MA_NIT_1_2, MA_NIT_3_4, MA_NIT_5_6, align = "h", nrow = 1, ncol = 3)
+```
+
+```{r MAplot SFI, echo=FALSE, fig.cap="Representación MA de tres comparaciones entre muestras del grupo SFI",  fig.height= 3}
+plot_grid(MA_SFI_10_11, MA_SFI_15_16, MA_SFI_18_19, align = "h", nrow = 1, ncol = 3)
+```
+
+```{r MAplot ELI, echo=FALSE, fig.cap="Representación MA de tres comparaciones entre muestras del grupo ELI",  fig.height= 3}
+plot_grid(MA_ELI_20_22, MA_ELI_23_25, MA_ELI_26_28, align = "h", nrow = 1, ncol = 3)
+```
+
 
 ### Filtraje
 
