@@ -100,20 +100,6 @@
 \providecommand{\tightlist}{%
   \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
 \setcounter{secnumdepth}{5}
-\usepackage{booktabs}
-\usepackage{longtable}
-\usepackage{array}
-\usepackage{multirow}
-\usepackage{wrapfig}
-\usepackage{float}
-\usepackage{colortbl}
-\usepackage{pdflscape}
-\usepackage{tabu}
-\usepackage{threeparttable}
-\usepackage{threeparttablex}
-\usepackage[normalem]{ulem}
-\usepackage{makecell}
-\usepackage{xcolor}
 \ifxetex
   % Load polyglossia as late as possible: uses bidi with RTL langages (e.g. Hebrew, Arabic)
   \usepackage{polyglossia}
@@ -124,7 +110,7 @@
 
 \title{PEC2 Análisis de Datos Ómicos}
 \author{Rita Ortega Vallbona}
-\date{8 de junio, 2020}
+\date{10 de junio, 2020}
 
 \begin{document}
 \maketitle
@@ -302,15 +288,15 @@ comparamos los resultados:
 Para poder visualizar la distribución de los datos de las 30 muestras
 con las que trabajamos, las representamos en forma de boxplot:
 
-\includegraphics{ortega_rita_ADO_PEC2_files/figure-latex/boxplot rawdata pseudocounts-1.pdf}
-\includegraphics{ortega_rita_ADO_PEC2_files/figure-latex/boxplot rawdata pseudocounts2-1.pdf}
+\includegraphics{ortega_rita_ADO_PEC2_files/figure-latex/boxplot_rawdata_pseudocounts-1.pdf}
+\includegraphics{ortega_rita_ADO_PEC2_files/figure-latex/boxplot_rawdata_pseudocounts2-1.pdf}
 
 Representamos los datos en gráficos de densidades para detectar si
 pudiera haber modos secundarios de la distribución de los datos:
 
 \begin{figure}
 \centering
-\includegraphics{ortega_rita_ADO_PEC2_files/figure-latex/density plot-1.pdf}
+\includegraphics{ortega_rita_ADO_PEC2_files/figure-latex/density_plot-1.pdf}
 \caption{Gráficos de densidades que muestra las densidades empíricas de
 las muestras individuales dentro de cada una de las tres condiciones
 experimentales}
@@ -345,27 +331,214 @@ MA-plots para comparar muestras entre sí:
 
 \begin{figure}
 \centering
-\includegraphics{ortega_rita_ADO_PEC2_files/figure-latex/MAplot NIT-1.pdf}
+\includegraphics{ortega_rita_ADO_PEC2_files/figure-latex/MAplot_NIT-1.pdf}
 \caption{Representación MA de tres comparaciones entre muestras del
 grupo NIT}
 \end{figure}
 
 \begin{figure}
 \centering
-\includegraphics{ortega_rita_ADO_PEC2_files/figure-latex/MAplot SFI-1.pdf}
+\includegraphics{ortega_rita_ADO_PEC2_files/figure-latex/MAplot_SFI-1.pdf}
 \caption{Representación MA de tres comparaciones entre muestras del
 grupo SFI}
 \end{figure}
 
-\includegraphics{ortega_rita_ADO_PEC2_files/figure-latex/MAplot ELI-1.pdf}
-\#\#\# Filtraje
+\begin{figure}
+\centering
+\includegraphics{ortega_rita_ADO_PEC2_files/figure-latex/MAplot_ELI-1.pdf}
+\caption{Representación MA de tres comparaciones entre muestras del
+grupo ELI}
+\end{figure}
+
+Para ver qué muestras son más similares entre sí, las representamos en
+un heatmap:
+
+\includegraphics{ortega_rita_ADO_PEC2_files/figure-latex/heatmap_pseudocount-1.pdf}
+
+Mediante un análisis de componentes principales (PCA, \emph{Principal
+Component Analysis}), podremos visualizar los efectos de las diferentes
+condiciones experimentales y detectar \emph{batch effects}:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OperatorTok{>}\StringTok{ }\KeywordTok{library}\NormalTok{(DESeq)}
+\OperatorTok{>}\StringTok{ }\NormalTok{grupo <-}\StringTok{ }\NormalTok{mytargets}\OperatorTok{$}\NormalTok{Group}
+\OperatorTok{>}\StringTok{ }\NormalTok{datatype <-}\StringTok{ }\KeywordTok{substr}\NormalTok{(mytargets}\OperatorTok{$}\NormalTok{molecular_data_type, }\DecValTok{1}\NormalTok{, }\DecValTok{3}\NormalTok{)}
+\OperatorTok{>}\StringTok{ }\NormalTok{sexo <-}\StringTok{ }\NormalTok{mytargets}\OperatorTok{$}\NormalTok{sex}
+\OperatorTok{>}\StringTok{ }\NormalTok{anot <-}\StringTok{ }\KeywordTok{AnnotatedDataFrame}\NormalTok{(}\DataTypeTok{data =} \KeywordTok{data.frame}\NormalTok{(grupo, datatype, }
+\OperatorTok{+}\StringTok{     }\NormalTok{sexo, }\DataTypeTok{row.names =} \KeywordTok{colnames}\NormalTok{(pseudoCounts)))}
+\OperatorTok{>}\StringTok{ }\NormalTok{exprSetpseudoCounts <-}\StringTok{ }\KeywordTok{new}\NormalTok{(}\StringTok{"ExpressionSet"}\NormalTok{, }\DataTypeTok{exprs =} \KeywordTok{as.matrix}\NormalTok{(pseudoCounts), }
+\OperatorTok{+}\StringTok{     }\DataTypeTok{phenoData =}\NormalTok{ anot)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OperatorTok{>}\StringTok{ }\KeywordTok{plotPCA}\NormalTok{(exprSetpseudoCounts, }\DataTypeTok{intgroup =} \KeywordTok{c}\NormalTok{(}\StringTok{"grupo"}\NormalTok{, }\StringTok{"datatype"}\NormalTok{))}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{figure}
+\centering
+\includegraphics{ortega_rita_ADO_PEC2_files/figure-latex/plotPCA_datatype-1.pdf}
+\caption{PCA teniendo en cuenta el grupo experimental y el tipo de
+datos}
+\end{figure}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OperatorTok{>}\StringTok{ }\KeywordTok{plotPCA}\NormalTok{(exprSetpseudoCounts, }\DataTypeTok{intgroup =} \KeywordTok{c}\NormalTok{(}\StringTok{"grupo"}\NormalTok{, }\StringTok{"sexo"}\NormalTok{))}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{figure}
+\centering
+\includegraphics{ortega_rita_ADO_PEC2_files/figure-latex/plotPCA_sexo-1.pdf}
+\caption{PCA teniendo en cuenta el grupo experimental y el sexo}
+\end{figure}
+
+\hypertarget{filtraje}{%
+\subsubsection{Filtraje}\label{filtraje}}
+
+Procedemos a realizar un filtraje de los genes que se ven menos
+expresados en todas las condiciones experimentales. Filtramos los genes
+que no se expresan en ninguna de las muestras, quedándonos con los que
+se expresan al menos en una muestra:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OperatorTok{>}\StringTok{ }\NormalTok{filtro1 <-}\StringTok{ }\KeywordTok{rowSums}\NormalTok{(mycounts) }\OperatorTok{>}\StringTok{ }\DecValTok{0}
+\OperatorTok{>}\StringTok{ }\NormalTok{filtro1pseudoCounts <-}\StringTok{ }\NormalTok{pseudoCounts[filtro1, ]}
+\OperatorTok{>}\StringTok{ }\KeywordTok{dim}\NormalTok{(mycounts)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+[1] 56202    30
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OperatorTok{>}\StringTok{ }\KeywordTok{dim}\NormalTok{(filtro1pseudoCounts)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+[1] 46229    30
+\end{verbatim}
+
+Así hemos reducido el número de genes a
+\texttt{nrow(filtro1pseudoCounts)}.
+
+\begin{figure}
+\centering
+\includegraphics{ortega_rita_ADO_PEC2_files/figure-latex/density_plot_filtro1-1.pdf}
+\caption{Diagramas de densidad de las muestras tras el filtrado de los
+genes que no se expresan}
+\end{figure}
+
+Para poder trabajar con mayor facilidad con los datos, los guardamos
+objeto tipo DGElist, con la función \texttt{DGEList} del paquete
+\texttt{edgeR}, que nos permite hacer el filtrado de los genes que no se
+expresan, tal y como hemos hecho con los \emph{pseudocounts}, pero lo
+hacemos de los datos de counts sin la transformación previa que hicimos
+para facilitar la representación gráfica:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OperatorTok{>}\StringTok{ }\NormalTok{ConditionDGE <-}\StringTok{ }\NormalTok{mytargets}\OperatorTok{$}\NormalTok{Group}
+\OperatorTok{>}\StringTok{ }\NormalTok{DGEFiltered <-}\StringTok{ }\NormalTok{edgeR}\OperatorTok{::}\KeywordTok{DGEList}\NormalTok{(}\DataTypeTok{counts =}\NormalTok{ mycounts, }\DataTypeTok{group =} \KeywordTok{factor}\NormalTok{(ConditionDGE), }
+\OperatorTok{+}\StringTok{     }\DataTypeTok{remove.zeros =} \OtherTok{TRUE}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
 
 \hypertarget{normalizaciuxf3n}{%
 \subsubsection{Normalización}\label{normalizaciuxf3n}}
 
+Para normalizar nuestros datos, aplicaremos el método \textbf{TMM}
+(\emph{Trimmed Mean of M-values}). Al aplicar el TMM, estamos asumiendo
+que la mayoría de los genes no están diferencialmente expresados.
+Diferentes autores defienden que este método de normalización es
+bastante efectivo para detectar genes diferencialmente expresados y para
+controlar los falsos positivos (Evans, Hardin, and Stoebel 2017). El
+método TMM tiene en cuenta que los pocos genes altamente expresados son
+los que más influyen en la expresión total, y que la probabilidad de que
+estos genes pueden estar diferencialmente expresados entre muestras en
+distintas condiciones, es igual que la probabilidad de que todos los
+genes lo estén, es decir, que exista una \emph{expresión balanceada}.
+Para aplicar este método de normalización, utilizamos la función
+\texttt{calcNormFactors()} del paquete \texttt{edgeR}:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OperatorTok{>}\StringTok{ }\KeywordTok{library}\NormalTok{(edgeR)}
+\OperatorTok{>}\StringTok{ }
+\ErrorTok{>}\StringTok{ }\NormalTok{NormDGEpFilt <-}\StringTok{ }\KeywordTok{calcNormFactors}\NormalTok{(DGEFiltered, }\DataTypeTok{method =} \StringTok{"TMM"}\NormalTok{)}
+\OperatorTok{>}\StringTok{ }\KeywordTok{dim}\NormalTok{(NormDGEpFilt}\OperatorTok{$}\NormalTok{counts)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+[1] 46229    30
+\end{verbatim}
+
+Representamos los datos normalizados con el método MDS
+(\emph{multidimensional scaling}):
+
+\begin{figure}
+\centering
+\includegraphics{ortega_rita_ADO_PEC2_files/figure-latex/plot norm_data-1.pdf}
+\caption{Representación de los datos normalizados con el método MDS}
+\end{figure}
+
 \hypertarget{identificaciuxf3n-de-genes-diferencialmente-expresados}{%
 \subsection{Identificación de genes diferencialmente
 expresados}\label{identificaciuxf3n-de-genes-diferencialmente-expresados}}
+
+Para identificar los genes diferencialmente expresados entre los
+diferentes grupos experimentales, primero debemos estimar el parámetro
+de dispersión, que nos indicará el grado de variación dentro de nuestro
+dataset.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OperatorTok{>}\StringTok{ }\NormalTok{dispersionComun <-}\StringTok{ }\KeywordTok{estimateCommonDisp}\NormalTok{(NormDGEpFilt, }\DataTypeTok{verbose =}\NormalTok{ T)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+Disp = 0.30317 , BCV = 0.5506 
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OperatorTok{>}\StringTok{ }\KeywordTok{names}\NormalTok{(dispersionComun)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+[1] "counts"            "samples"           "common.dispersion"
+[4] "pseudo.counts"     "pseudo.lib.size"   "AveLogCPM"        
+\end{verbatim}
+
+A partir de los parámetros de dispersión común calculamos las
+dispersiones \emph{Tagwise}:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\OperatorTok{>}\StringTok{ }\NormalTok{dispersionComun <-}\StringTok{ }\KeywordTok{estimateTagwiseDisp}\NormalTok{(dispersionComun)}
+\OperatorTok{>}\StringTok{ }\KeywordTok{names}\NormalTok{(dispersionComun)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+ [1] "counts"             "samples"            "common.dispersion" 
+ [4] "pseudo.counts"      "pseudo.lib.size"    "AveLogCPM"         
+ [7] "prior.df"           "prior.n"            "tagwise.dispersion"
+[10] "span"              
+\end{verbatim}
+
+\includegraphics{ortega_rita_ADO_PEC2_files/figure-latex/plotBCV-1.pdf}
 
 \hypertarget{anotaciuxf3n-de-los-resultados}{%
 \subsection{Anotación de los
@@ -395,6 +568,12 @@ Analysis}'')}{Análisis de significación biológica (``Gene Enrichment Analysis
 \addcontentsline{toc}{section}{Bibliografía}
 
 \hypertarget{refs}{}
+\leavevmode\hypertarget{ref-Normalization}{}%
+Evans, Ciaran, Johanna Hardin, and Daniel M Stoebel. 2017. ``Selecting
+Between-Sample Rna-Seq Normalization Methods from the Perspective of
+Their Assumptions.'' \emph{Briefings in Bioinformatics} 19 (5): 776--92.
+\url{https://doi.org/10.1093/bib/bbx008}.
+
 \leavevmode\hypertarget{ref-GTEx}{}%
 ``GTEx Portal.'' n.d. \url{https://www.gtexportal.org/home/}.
 

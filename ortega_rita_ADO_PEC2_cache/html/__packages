@@ -1,0 +1,16 @@
+base
+knitr
+ggplot2
+locfit
+kableExtra
+printr
+ggrepel
+limma
+edgeR
+cowplot
+MASS
+lattice
+mixOmics
+BiocGenerics
+Biobase
+DESeq

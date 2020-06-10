@@ -3,6 +3,11 @@ title: "PEC2 Análisis de Datos Ómicos"
 author: "Rita Ortega Vallbona"
 date: '`r format(Sys.Date(),"%e de %B, %Y")`'
 output: 
+  html_document: 
+    number_sections: yes
+    theme: united
+    toc: yes
+    toc_float: yes
   pdf_document: 
     df_print: kable
     fig_caption: yes
@@ -10,11 +15,6 @@ output:
     number_sections: yes
     toc: yes
     toc_depth: 3
-  html_document: 
-    number_sections: yes
-    theme: united
-    toc: yes
-    toc_float: yes
 lang: en # language,  en: english (default), es: español, ...
 params:
   file1: targets.csv
@@ -235,11 +235,11 @@ plot_grid(MA_NIT_1_2, MA_NIT_3_4, MA_NIT_5_6, align = "h", nrow = 1, ncol = 3)
 ```
 
 ```{r MAplot_SFI, echo=FALSE, fig.cap="Representación MA de tres comparaciones entre muestras del grupo SFI",  fig.height= 3}
-plot_grid(MA_SFI_10_11, MA_SFI_15_16, MA_SFI_18_19, align = "h", nrow = 1, ncol = 3)
+plot_grid(MA_SFI_11_12, MA_SFI_15_16, MA_SFI_18_19, align = "h", nrow = 1, ncol = 3)
 ```
 
 ```{r MAplot_ELI, echo=FALSE, fig.cap="Representación MA de tres comparaciones entre muestras del grupo ELI",  fig.height= 3}
-plot_grid(MA_ELI_20_22, MA_ELI_23_25, MA_ELI_26_28, align = "h", nrow = 1, ncol = 3)
+plot_grid(MA_ELI_21_22, MA_ELI_23_25, MA_ELI_26_28, align = "h", nrow = 1, ncol = 3)
 ```
 
 Para ver qué muestras son más similares entre sí, las representamos en un heatmap: 
@@ -257,14 +257,6 @@ cim(HMpseudoCounts, symkey = FALSE, margins = c(9,9))
 
 Mediante un análisis de componentes principales (PCA, *Principal Component Analysis*), podremos visualizar los efectos de las diferentes condiciones experimentales y detectar *batch effects*:
 
-```{r PCAprepare}
-library(matrixStats)
-
-row_variance <- rowVars(as.matrix(pseudoCounts))
-select_vari <- order(row_variance, decreasing = TRUE)[1:25000]
-pca_raw <- prcomp(t(pseudoCounts[select_vari,]))
-```
-
 ```{r plotPCA_raw}
 library(DESeq)
 grupo <- mytargets$Group
@@ -272,16 +264,86 @@ datatype <- substr(mytargets$molecular_data_type, 1, 3)
 sexo <- mytargets$sex
 anot <- AnnotatedDataFrame(data = data.frame(grupo, datatype, sexo, row.names = colnames(pseudoCounts)))
 exprSetpseudoCounts <- new("ExpressionSet", exprs = as.matrix(pseudoCounts), phenoData= anot)
+```
 
+```{r plotPCA_datatype, fig.cap= "PCA teniendo en cuenta el grupo experimental y el tipo de datos"}
 plotPCA(exprSetpseudoCounts, intgroup = c("grupo", "datatype"))
-plotPCA(exprSetpseudoCounts, intgroup = c("grupo", "sexo"))
+```
+
+```{r plotPCA_sexo, fig.cap= "PCA teniendo en cuenta el grupo experimental y el sexo"}
+plotPCA(exprSetpseudoCounts, intgroup = c("grupo", "sexo")) 
 ```
 
 ### Filtraje
 
+Procedemos a realizar un filtraje de los genes que se ven menos expresados en todas las condiciones experimentales. Filtramos los genes que no se expresan en ninguna de las muestras, quedándonos con los que se expresan al menos en una muestra: 
+
+```{r filter1}
+filtro1 <- rowSums(mycounts) > 0
+filtro1pseudoCounts <- pseudoCounts[filtro1,]
+dim(mycounts)
+dim(filtro1pseudoCounts)
+```
+
+Así hemos reducido el número de genes a `nrow(filtro1pseudoCounts)`.
+
+```{r density_plot_filtro1, echo= FALSE, fig.cap="Diagramas de densidad de las muestras tras el filtrado de los genes que no se expresan"}
+Fil1pseudoCount_df = reshape2::melt(filtro1pseudoCounts, variable.name = "Samples")
+Fil1pseudoCount_df = data.frame(Fil1pseudoCount_df, Condition = substr(Fil1pseudoCount_df$Samples, 1, 3))
+
+ggplot(Fil1pseudoCount_df, aes(x=value, colour = Samples, fill = Samples)) + ylim(c(0, 0.25)) + geom_density(alpha = 0.2, size = 1.25) + facet_wrap(~ Condition) + theme(legend.position = "top") + xlab(expression(log[2](count + 1)))
+```
+
+Para poder trabajar con mayor facilidad con los datos, los guardamos objeto tipo DGElist, con la función `DGEList` del paquete `edgeR`, que nos permite hacer el filtrado de los genes que no se expresan, tal y como hemos hecho con los *pseudocounts*, pero lo hacemos de los datos de counts sin la transformación previa que hicimos para facilitar la representación gráfica:
+
+```{r DGElist_object}
+ConditionDGE <- mytargets$Group
+DGEFiltered <- edgeR::DGEList(counts = mycounts, group = factor(ConditionDGE), remove.zeros = TRUE)
+```
+
 ### Normalización
 
+Para normalizar nuestros datos, aplicaremos el método **TMM** (*Trimmed Mean of M-values*). Al aplicar el TMM, estamos asumiendo que la mayoría de los genes no están diferencialmente expresados. Diferentes autores defienden que este método de normalización es bastante efectivo para detectar genes diferencialmente expresados y para controlar los falsos positivos [@Normalization]. El método TMM tiene en cuenta que los pocos genes altamente expresados son los que más influyen en la expresión total, y que la probabilidad de que estos genes pueden estar diferencialmente expresados entre muestras en distintas condiciones, es igual que la probabilidad de que todos los genes lo estén, es decir, que exista una *expresión balanceada*. 
+Para aplicar este método de normalización, utilizamos la función `calcNormFactors()` del paquete `edgeR`:
+
+```{r normalizacion}
+library(edgeR)
+
+NormDGEpFilt <- calcNormFactors(DGEFiltered, method = "TMM")
+dim(NormDGEpFilt$counts)
+```
+
+Representamos los datos normalizados con el método MDS (*multidimensional scaling*):
+
+```{r plot norm_data, echo=FALSE, fig.cap= "Representación de los datos normalizados con el método MDS"}
+library(edgeR)
+
+plotMDS(NormDGEpFilt, method = "bcv", pch = 20, col = as.numeric(NormDGEpFilt$samples$group))
+legend("bottomleft", as.character(unique(NormDGEpFilt$samples$group)), col=1:3, pch = 20)
+```
+
+
 ## Identificación de genes diferencialmente expresados
+
+Para identificar los genes diferencialmente expresados entre los diferentes grupos experimentales, primero debemos estimar el parámetro de dispersión, que nos indicará el grado de variación dentro de nuestro dataset. 
+
+```{r estimar_dispersion}
+dispersionComun <- estimateCommonDisp(NormDGEpFilt, verbose = T)
+names(dispersionComun)
+```
+
+A partir de los parámetros de dispersión común calculamos las dispersiones *Tagwise*:
+
+```{r estimar_TagwiseDisp}
+dispersionComun <- estimateTagwiseDisp(dispersionComun)
+names(dispersionComun)
+```
+
+```{r plotBCV, echo=FALSE}
+plotBCV(dispersionComun)
+```
+
+
 
 ## Anotación de los resultados
 
