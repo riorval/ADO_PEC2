@@ -339,11 +339,60 @@ dispersionComun <- estimateTagwiseDisp(dispersionComun)
 names(dispersionComun)
 ```
 
-```{r plotBCV, echo=FALSE}
+```{r plotBCV, echo=FALSE, fig.cap= "Diagrama que representa el coeficiente biológico de variación con respecto a la abundancia de genes"}
 plotBCV(dispersionComun)
 ```
 
+Una vez analizada la dispersión, podemos ver la expresión diferencial entre los distintos grupos. 
 
+```{r exact_test}
+exactEdgeR12 <- exactTest(dispersionComun, pair = c(1,2))
+exactEdgeR23 <- exactTest(dispersionComun, pair = c(2,3))
+exactEdgeR13 <- exactTest(dispersionComun, pair = c(1,3))
+
+resultEdgeR12 <- topTags(exactEdgeR12)
+resultEdgeR12
+
+resultEdgeR23 <- topTags(exactEdgeR23)
+resultEdgeR23
+
+resultEdgeR13 <- topTags(exactEdgeR13)
+resultEdgeR13
+```
+
+Los objetos *TopTags* obtenidos nos muestran 5 columnas para cada una de las 3 comparaciones realizadas: la primera muestra los identificadores de los genes, la segunda `logFC` es el logaritmo en base 2 del *fold change*, la tercera `logCPM` es la media del `r expression(log[2])` de las cuentas por millón para cada gen, la cuarta `PValue` es el p valor para la significancia estadística de este cambio, y la última, `FDR` es el p valor ajustado para test múltiple que controla los falsos positivos. 
+
+Para visualizar mejor estos resultados los representamos gráficamente: 
+
+```{r smearplot_12, fig.cap="Representación gráfica de la expresión diferencial entre los grupos NIT y ELI"}
+library(edgeR)
+
+decide12 <- decideTestsDGE(exactEdgeR12, adjust.method="BH", p.value = 0.05)
+decide_genes12 <- rownames(dispersionComun)[as.logical(decide12)]
+
+plotSmear(exactEdgeR12, de.tags = decide_genes12, cex=0.5)
+abline(h = c(-2,2), col = "blue")
+```
+
+```{r smearplot_23, fig.cap="Representación gráfica de la expresión diferencial entre los grupos SFI y NIT"}
+library(edgeR)
+
+decide23 <- decideTestsDGE(exactEdgeR23, adjust.method="BH", p.value = 0.05)
+decide_genes23 <- rownames(dispersionComun)[as.logical(decide23)]
+
+plotSmear(exactEdgeR23, de.tags = decide_genes23, cex=0.5)
+abline(h = c(-2,2), col = "blue")
+```
+
+```{r smearplot_12, fig.cap="Representación gráfica de la expresión diferencial entre los grupos SFI y ELI"}
+library(edgeR)
+
+decide13 <- decideTestsDGE(exactEdgeR13, adjust.method="BH", p.value = 0.05)
+decide_genes13 <- rownames(dispersionComun)[as.logical(decide13)]
+
+plotSmear(exactEdgeR13, de.tags = decide_genes13, cex=0.5)
+abline(h = c(-2,2), col = "blue")
+```
 
 ## Anotación de los resultados
 
