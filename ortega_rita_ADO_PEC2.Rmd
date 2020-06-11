@@ -480,6 +480,8 @@ mtext(c(paste("-", lfc, "fold"), paste ("+", lfc, "fold")), side = -3, at = c(-l
 
 ## Anotación de los resultados
 
+
+
 Para poder hacer la anotación de los resultados, utilizaremos una función diseñada específicamente y la aplicaremos a las tres comparaciones que estamos estudiando:
 
 ```{r la cacasion NUSE}
