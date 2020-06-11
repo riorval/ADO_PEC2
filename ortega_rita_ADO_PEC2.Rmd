@@ -63,6 +63,7 @@ BiocManager::install("limma")
 BiocManager::install("edgeR")
 BiocManager::install("mixOmics")
 BiocManager::install("DESeq")
+BiocManager::install("biomaRt")
 
 BiocManager::install("GEOquery")
 BiocManager::install("oligo")
@@ -309,8 +310,8 @@ Para aplicar este método de normalización, utilizamos la función `calcNormFac
 ```{r normalizacion}
 library(edgeR)
 
-NormDGEpFilt <- calcNormFactors(DGEFiltered, method = "TMM")
-dim(NormDGEpFilt$counts)
+DGEFiltered <- calcNormFactors(DGEFiltered, method = "TMM")
+dim(DGEFiltered$counts)
 ```
 
 Representamos los datos normalizados con el método MDS (*multidimensional scaling*):
@@ -318,8 +319,8 @@ Representamos los datos normalizados con el método MDS (*multidimensional scali
 ```{r plot norm_data, echo=FALSE, fig.cap= "Representación de los datos normalizados con el método MDS"}
 library(edgeR)
 
-plotMDS(NormDGEpFilt, method = "bcv", pch = 20, col = as.numeric(NormDGEpFilt$samples$group))
-legend("bottomleft", as.character(unique(NormDGEpFilt$samples$group)), col=1:3, pch = 20)
+plotMDS(DGEFiltered, method = "bcv", pch = 1, cex = 2, col = as.numeric(DGEFiltered$samples$group))
+legend("bottomleft", as.character(unique(DGEFiltered$samples$group)), col=1:3, pch = 1)
 ```
 
 
@@ -328,27 +329,27 @@ legend("bottomleft", as.character(unique(NormDGEpFilt$samples$group)), col=1:3, 
 Para identificar los genes diferencialmente expresados entre los diferentes grupos experimentales, primero debemos estimar el parámetro de dispersión, que nos indicará el grado de variación dentro de nuestro dataset. 
 
 ```{r estimar_dispersion}
-dispersionComun <- estimateCommonDisp(NormDGEpFilt, verbose = T)
-names(dispersionComun)
+DGEFiltered <- estimateCommonDisp(DGEFiltered, verbose = T)
+names(DGEFiltered)
 ```
 
 A partir de los parámetros de dispersión común calculamos las dispersiones *Tagwise*:
 
 ```{r estimar_TagwiseDisp}
-dispersionComun <- estimateTagwiseDisp(dispersionComun)
-names(dispersionComun)
+DGEFiltered <- estimateTagwiseDisp(DGEFiltered)
+names(DGEFiltered)
 ```
 
 ```{r plotBCV, echo=FALSE, fig.cap= "Diagrama que representa el coeficiente biológico de variación con respecto a la abundancia de genes"}
-plotBCV(dispersionComun)
+plotBCV(DGEFiltered)
 ```
 
 Una vez analizada la dispersión, podemos ver la expresión diferencial entre los distintos grupos. 
 
 ```{r exact_test}
-exactEdgeR12 <- exactTest(dispersionComun, pair = c(1,2))
-exactEdgeR23 <- exactTest(dispersionComun, pair = c(2,3))
-exactEdgeR13 <- exactTest(dispersionComun, pair = c(1,3))
+exactEdgeR12 <- exactTest(DGEFiltered, pair = c(1,2))
+exactEdgeR23 <- exactTest(DGEFiltered, pair = c(2,3))
+exactEdgeR13 <- exactTest(DGEFiltered, pair = c(1,3))
 
 resultEdgeR12 <- topTags(exactEdgeR12)
 resultEdgeR12
@@ -360,41 +361,139 @@ resultEdgeR13 <- topTags(exactEdgeR13)
 resultEdgeR13
 ```
 
-Los objetos *TopTags* obtenidos nos muestran 5 columnas para cada una de las 3 comparaciones realizadas: la primera muestra los identificadores de los genes, la segunda `logFC` es el logaritmo en base 2 del *fold change*, la tercera `logCPM` es la media del `r expression(log[2])` de las cuentas por millón para cada gen, la cuarta `PValue` es el p valor para la significancia estadística de este cambio, y la última, `FDR` es el p valor ajustado para test múltiple que controla los falsos positivos. 
+Los objetos *TopTags* obtenidos nos muestran 5 columnas para cada una de las 3 comparaciones realizadas: la primera muestra los identificadores de los genes, la segunda `logFC` es el logaritmo en base 2 del *fold change*, la tercera `logCPM` es la media del `log2` de las cuentas por millón para cada gen, la cuarta `PValue` es el p valor para la significancia estadística de este cambio, y la última, `FDR` es el p valor ajustado para test múltiple que controla los falsos positivos. 
 
 Para visualizar mejor estos resultados los representamos gráficamente: 
 
-```{r smearplot_12, fig.cap="Representación gráfica de la expresión diferencial entre los grupos NIT y ELI"}
+### Representación gráfica (*Smear plots*) de las tres comparaciones {.tabset}
+
+#### NIT vs ELI
+```{r smearplot_12, echo = FALSE, fig.cap="Representación gráfica de la expresión diferencial entre los grupos NIT y ELI"}
 library(edgeR)
 
 decide12 <- decideTestsDGE(exactEdgeR12, adjust.method="BH", p.value = 0.05)
-decide_genes12 <- rownames(dispersionComun)[as.logical(decide12)]
+decide_genes12 <- rownames(DGEFiltered)[as.logical(decide12)]
 
 plotSmear(exactEdgeR12, de.tags = decide_genes12, cex=0.5)
 abline(h = c(-2,2), col = "blue")
 ```
 
-```{r smearplot_23, fig.cap="Representación gráfica de la expresión diferencial entre los grupos SFI y NIT"}
+#### SFI vs NIT
+
+```{r smearplot_23, echo = FALSE, fig.cap="Representación gráfica de la expresión diferencial entre los grupos SFI y NIT"}
 library(edgeR)
 
 decide23 <- decideTestsDGE(exactEdgeR23, adjust.method="BH", p.value = 0.05)
-decide_genes23 <- rownames(dispersionComun)[as.logical(decide23)]
+decide_genes23 <- rownames(DGEFiltered)[as.logical(decide23)]
 
 plotSmear(exactEdgeR23, de.tags = decide_genes23, cex=0.5)
 abline(h = c(-2,2), col = "blue")
 ```
 
-```{r smearplot_12, fig.cap="Representación gráfica de la expresión diferencial entre los grupos SFI y ELI"}
+#### SFI vs ELI
+
+```{r smearplot_13, echo = FALSE, fig.cap="Representación gráfica de la expresión diferencial entre los grupos SFI y ELI"}
 library(edgeR)
 
 decide13 <- decideTestsDGE(exactEdgeR13, adjust.method="BH", p.value = 0.05)
-decide_genes13 <- rownames(dispersionComun)[as.logical(decide13)]
+decide_genes13 <- rownames(DGEFiltered)[as.logical(decide13)]
 
 plotSmear(exactEdgeR13, de.tags = decide_genes13, cex=0.5)
 abline(h = c(-2,2), col = "blue")
 ```
+###  Volcano plots de las comparaciones entre grupos {.tabset}
+
+#### NIT vs ELI
+
+```{r volcano_12, echo=FALSE}
+#Construimos la tabla para el volcano plot
+volcanTable12 <- data.frame(logFC = exactEdgeR12$table[,1], negLogPval = -log10(exactEdgeR12$table[,3]))
+
+#Representamos la tabla
+par(mar = c(5,4,4,4))
+plot(volcanTable12, pch = 16, cex = 0.6, xlab = expression(log[2]~fold~change), ylab = expression(-log[10]~pvalue))
+
+#Identificamos los puntos de interés
+lfc = 2
+pval = 0.05
+
+#Seleccionamos los genes de interés
+signGenes12 <- (abs(volcanTable12$logFC) > lfc & volcanTable12$negLogPval > -log10(pval))
+
+#Identificamos los genes seleccionados en el gráfico
+points(volcanTable12[signGenes12,], pch = 16, cex = 0.8, col = "red")
+abline(h = -log10(pval), col = "green3", lty = 2)
+abline(v = c(-lfc, lfc), col = "blue", lty = 2)
+mtext(paste("pval =", pval), side = 4, at = -log10(pval), cex = 0.8, line = 0.5, las = 1)
+mtext(c(paste("-", lfc, "fold"), paste ("+", lfc, "fold")), side = -3, at = c(-lfc, lfc), cex = 0.8, line = 0.5)
+```
+
+#### SFI vs NIT
+
+```{r volcano_23, echo=FALSE}
+#Construimos la tabla para el volcano plot
+volcanTable12 <- data.frame(logFC = exactEdgeR23$table[,1], negLogPval = -log10(exactEdgeR23$table[,3]))
+
+#Representamos la tabla
+par(mar = c(5,4,4,4))
+plot(volcanTable12, pch = 16, cex = 0.6, xlab = expression(log[2]~fold~change), ylab = expression(-log[10]~pvalue))
+
+#Identificamos los puntos de interés
+lfc = 2
+pval = 0.05
+
+#Seleccionamos los genes de interés
+signGenes12 <- (abs(volcanTable12$logFC) > lfc & volcanTable12$negLogPval > -log10(pval))
+
+#Identificamos los genes seleccionados en el gráfico
+points(volcanTable12[signGenes12,], pch = 16, cex = 0.8, col = "red")
+abline(h = -log10(pval), col = "green3", lty = 2)
+abline(v = c(-lfc, lfc), col = "blue", lty = 2)
+mtext(paste("pval =", pval), side = 4, at = -log10(pval), cex = 0.8, line = 0.5, las = 1)
+mtext(c(paste("-", lfc, "fold"), paste ("+", lfc, "fold")), side = -3, at = c(-lfc, lfc), cex = 0.8, line = 0.5)
+```
+
+#### SFI vs ELI
+
+```{r volcano_13, echo=FALSE}
+#Construimos la tabla para el volcano plot
+volcanTable12 <- data.frame(logFC = exactEdgeR13$table[,1], negLogPval = -log10(exactEdgeR13$table[,3]))
+
+#Representamos la tabla
+par(mar = c(5,4,4,4))
+plot(volcanTable12, pch = 16, cex = 0.6, xlab = expression(log[2]~fold~change), ylab = expression(-log[10]~pvalue))
+
+#Identificamos los puntos de interés
+lfc = 2
+pval = 0.05
+
+#Seleccionamos los genes de interés
+signGenes12 <- (abs(volcanTable12$logFC) > lfc & volcanTable12$negLogPval > -log10(pval))
+
+#Identificamos los genes seleccionados en el gráfico
+points(volcanTable12[signGenes12,], pch = 16, cex = 0.8, col = "red")
+abline(h = -log10(pval), col = "green3", lty = 2)
+abline(v = c(-lfc, lfc), col = "blue", lty = 2)
+mtext(paste("pval =", pval), side = 4, at = -log10(pval), cex = 0.8, line = 0.5, las = 1)
+mtext(c(paste("-", lfc, "fold"), paste ("+", lfc, "fold")), side = -3, at = c(-lfc, lfc), cex = 0.8, line = 0.5)
+```
 
 ## Anotación de los resultados
+
+Para poder hacer la anotación de los resultados, utilizaremos una función diseñada específicamente y la aplicaremos a las tres comparaciones que estamos estudiando:
+
+```{r la cacasion NUSE}
+annotatedTopTable <- function(topTab, anotPackage)
+{
+  topTab <- cbind(Ensembl=rownames(topTab), topTab)
+  topTab$Ensembl <- gsub("\\..*", "", topTab$Ensembl, fixed=FALSE)
+  myProbes <- topTab$Ensembl
+  thePackage <- eval(parse(text = anotPackage))
+  geneAnots <- select(thePackage, myProbes, c("SYMBOL", "ENTREZID", "GENENAME"))
+  annotatedTopTab<- merge(x=geneAnots, y=topTab, by.x="Ensembl", by.y="Ensembl")
+return(annotatedTopTab)
+}
+```
 
 ## Busca de patrones de expresión y agrupación de las muestras (comparación entre las distintas comparaciones)
 
