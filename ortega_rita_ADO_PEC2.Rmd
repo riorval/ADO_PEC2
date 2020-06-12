@@ -64,6 +64,7 @@ BiocManager::install("edgeR")
 BiocManager::install("mixOmics")
 BiocManager::install("DESeq")
 BiocManager::install("biomaRt")
+BiocManager::install("grex")
 
 BiocManager::install("GEOquery")
 BiocManager::install("oligo")
@@ -75,6 +76,10 @@ BiocManager::install("magrittr")
 BiocManager::install("clusterProfiler")
 BiocManager::install("rWikiPathways", update = FALSE)
 ```
+
+Todos los archivos relacionados con este trabajo se pueden encontrar en el repositorio de Github [riorval/ADO_PEC2](https://github.com/riorval/ADO_PEC2.git).
+
+\pagebreak
 
 # Abstract
 
@@ -346,6 +351,14 @@ plotBCV(DGEFiltered)
 
 Una vez analizada la dispersión, podemos ver la expresión diferencial entre los distintos grupos. 
 
+```{r cambia_genesIDs, include=FALSE}
+library(grex)
+
+#Convertimos los nombres de los genes en IDs de Ensembl
+row.names(DGEFiltered[["counts"]]) <- cleanid(row.names(DGEFiltered[["counts"]]))
+row.names(DGEFiltered[["pseudo.counts"]]) <- cleanid(row.names(DGEFiltered[["pseudo.counts"]]))
+```
+
 ```{r exact_test}
 exactEdgeR12 <- exactTest(DGEFiltered, pair = c(1,2))
 exactEdgeR23 <- exactTest(DGEFiltered, pair = c(2,3))
@@ -480,21 +493,20 @@ mtext(c(paste("-", lfc, "fold"), paste ("+", lfc, "fold")), side = -3, at = c(-l
 
 ## Anotación de los resultados
 
+Utilizando el paquete `biomaRt` creamos una tabla para anotar nuestros genes: 
 
+```{r descargar_datos_anotacion}
+library(biomaRt)
+my_ensemblIDs <- row.names(DGEFiltered[["pseudo.counts"]])
+ensembl <- useMart("ensembl", dataset = "hsapiens_gene_ensembl")
+anotationTable <- getBM(attributes = c("external_gene_name", "ensembl_gene_id", "entrezgene_id","go_id", "name_1006"), filters = c("ensembl_gene_id"), values= my_ensemblIDs, mart = ensembl)
+```
 
-Para poder hacer la anotación de los resultados, utilizaremos una función diseñada específicamente y la aplicaremos a las tres comparaciones que estamos estudiando:
-
-```{r la cacasion NUSE}
-annotatedTopTable <- function(topTab, anotPackage)
-{
-  topTab <- cbind(Ensembl=rownames(topTab), topTab)
-  topTab$Ensembl <- gsub("\\..*", "", topTab$Ensembl, fixed=FALSE)
-  myProbes <- topTab$Ensembl
-  thePackage <- eval(parse(text = anotPackage))
-  geneAnots <- select(thePackage, myProbes, c("SYMBOL", "ENTREZID", "GENENAME"))
-  annotatedTopTab<- merge(x=geneAnots, y=topTab, by.x="Ensembl", by.y="Ensembl")
-return(annotatedTopTab)
-}
+```{r filtrar_anotacion}
+#Filtramos los genes que no tienen entrezgeneID
+DGEFiltered$anotation <- anotationTable[!is.na(anotationTable$entrezgene_id),
+                                     c("external_gene_name", "ensembl_gene_id", "entrezgene_id", "go_id", "name_1006")]
+head(DGEFiltered$anotation)
 ```
 
 ## Busca de patrones de expresión y agrupación de las muestras (comparación entre las distintas comparaciones)
