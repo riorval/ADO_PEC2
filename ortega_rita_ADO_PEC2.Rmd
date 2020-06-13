@@ -4,9 +4,10 @@ author: "Rita Ortega Vallbona"
 date: '`r format(Sys.Date(),"%e de %B, %Y")`'
 output: 
   html_document: 
-    number_sections: yes
-    theme: united
+    number_sections: true
+    theme: paper
     toc: yes
+    toc_depth: 3
     toc_float: yes
   pdf_document: 
     df_print: kable
@@ -22,6 +23,8 @@ params:
   folder.data: data
   seed.extract: 555
 bibliography: bibliografiaPEC2ADO.bib
+nocite: |
+  @tutorialRNAseq
 ---
 
 ```{r setup, include=FALSE}
@@ -85,6 +88,16 @@ Todos los archivos relacionados con este trabajo se pueden encontrar en el repos
 
 # Objetivos
 
+En el presente trabajo realizaremos un análisis de datos RNA-seq que consiste en 30 muestras pertenecientes a 3 grupos de 10 muestras cada uno determinados por el tipo de tratamiento del tejido: *Not infiltrated tissues* (**NIT**), *Small focal infiltrates* (**SFI**) y *Extensive lymphoid infiltrates* (**ELI**).
+
+Los objetivos serán responder a las siguientes preguntas: 
+
+- ¿Hay diferencias de expresión significativas entre los tres grupos de muestras?
+
+- ¿Qué genes se encuentran diferencialmente expresados entre tratamientos? Más concretamente entre los tejidos no infiltrados y los dos tipos de infiltración.
+
+- ¿Influye el tipo de infiltración en los genes que se expresan diferencialmente?
+  
 # Materiales y métodos
 
 ## Los Datos
@@ -151,7 +164,8 @@ colnames(mycounts) <- mytargets$newShortNames
 De este modo, nuestros datos de contaje quedan así: 
 
 ```{r mycounts head}
-head(mycounts)
+library(kableExtra)
+kable(head(mycounts), "html") %>% kable_styling("striped") %>% scroll_box(width = "100%")
 ```
 
 Antes de proceder con el análisis de los datos, debemos evaluar la calidad de los datos crudos con los que vamos a trabajar, para detectar cualquier fallo técnico que pueda afectar a la interpretación de los datos. Analizaremos la calidad de los datos con representaciones gráficas, y dado que los datos resultantes de contajes suelen estar altamente sesgados, aplicaremos previamente una transformación logarítmica en base 2 para "normalizar" los datos. Además hemos de tener en cuenta que algunos de los contajes resultan en 0, para que ello no suponga un problema tomaremos *pseudocounts*, sumando una constante en todos los contajes, para que no den problema en la transformación logarítmica. 
@@ -171,10 +185,14 @@ library(edgeR)
 pseudoCounts2 <- cpm(mycounts, prior.count = 2, log = TRUE)
 
 library(ggplot2)
-ggplot(pseudoCounts, aes(x= pseudoCounts2[,1])) + ylab("CPM") + xlab(names(mycounts)[1]) + geom_histogram(colour = "white", fill = "#525252", binwidth = 0.6)
+ggplot(as.data.frame(pseudoCounts2), aes(x= pseudoCounts2[,1])) + ylab("CPM") + xlab(names(mycounts)[1]) + geom_histogram(colour = "white", fill = "#525252", binwidth = 0.6)
 ```
 
 Para poder visualizar la distribución de los datos de las 30 muestras con las que trabajamos, las representamos en forma de boxplot: 
+
+### {.tabset .tabset-fade}
+
+#### Boxplot pseudoCounts
 
 ```{r boxplot_rawdata_pseudocounts, echo=FALSE}
 boxplot(pseudoCounts, which = "all", las=2,
@@ -182,21 +200,41 @@ boxplot(pseudoCounts, which = "all", las=2,
                 rep("skyblue1",10)),
         main = "Distribución de contajes de pseudoCounts")
 ```
+
+#### Boxplot pseudocounts2 (con edgeR)
+
 ```{r boxplot_rawdata_pseudocounts2, echo=FALSE}
 boxplot(pseudoCounts2, which = "all", las=2,
         col = c(rep("yellow1",10), rep("olivedrab1",10),
                 rep("skyblue1",10)),
         main = "Distribución de contajes de pseudoCounts2 (con edgeR)")
 ```
+###
 
 Representamos los datos en gráficos de densidades para detectar si pudiera haber modos secundarios de la distribución de los datos:
 
-```{r density_plot, echo=FALSE, fig.cap="Gráficos de densidades que muestra las densidades empíricas de las muestras individuales dentro de cada una de las tres condiciones experimentales"}
+### {.tabset, .tabset-fade}
+
+#### Gráfico de densidades pseudoCounts
+
+```{r density_plot_pseudocounts, echo=FALSE, fig.cap="Gráficos de densidades que muestra las densidades empíricas de las muestras individuales dentro de cada una de las tres condiciones experimentales"}
 pseudoCount_df = reshape2::melt(pseudoCounts, variable.name = "Samples")
 pseudoCount_df = data.frame(pseudoCount_df, Condition = substr(pseudoCount_df$Samples, 1, 3))
 
 ggplot(pseudoCount_df, aes(x=value, colour = Samples, fill = Samples)) + ylim(c(0, 0.25)) + geom_density(alpha = 0.2, size = 1.25) + facet_wrap(~ Condition) + theme(legend.position = "top") + xlab(expression(log[2](count + 1)))
 ```
+
+#### Gráfico de densidades pseudoCounts
+
+```{r density_plot_pseudocounts2, echo=FALSE, fig.cap="Gráficos de densidades que muestra las densidades empíricas de las muestras individuales dentro de cada una de las tres condiciones experimentales, utilizando el ajuste hecho con edgeR"}
+pseudoCount_df2 = reshape2::melt(pseudoCounts2, variable.name = "Samples")
+colnames(pseudoCount_df2)[2] <- "Samples"
+pseudoCount_df2 = data.frame(pseudoCount_df2, Condition = substr(pseudoCount_df2$Samples, 1, 3))
+
+ggplot(pseudoCount_df2, aes(x=value, colour = Samples, fill = Samples)) + ylim(c(0, 0.25)) + geom_density(alpha = 0.2, size = 1.25) + facet_wrap(~ Condition) + theme(legend.position = "top") + xlab(expression(log[2](count + 1)))
+```
+
+###
 
 Para comprobar la reproducibilidad de las muestras, representamos los MA-plots para comparar muestras entre sí:
 
@@ -328,7 +366,6 @@ plotMDS(DGEFiltered, method = "bcv", pch = 1, cex = 2, col = as.numeric(DGEFilte
 legend("bottomleft", as.character(unique(DGEFiltered$samples$group)), col=1:3, pch = 1)
 ```
 
-
 ## Identificación de genes diferencialmente expresados
 
 Para identificar los genes diferencialmente expresados entre los diferentes grupos experimentales, primero debemos estimar el parámetro de dispersión, que nos indicará el grado de variación dentro de nuestro dataset. 
@@ -349,7 +386,7 @@ names(DGEFiltered)
 plotBCV(DGEFiltered)
 ```
 
-Una vez analizada la dispersión, podemos ver la expresión diferencial entre los distintos grupos. 
+ Para facilitarnos el trabajo en pasos posteriores procedemos a convertir el nombre de los genes a código Ensembl y también creamos una matriz de diseño del experimento:
 
 ```{r cambia_genesIDs, include=FALSE}
 library(grex)
@@ -358,6 +395,14 @@ library(grex)
 row.names(DGEFiltered[["counts"]]) <- cleanid(row.names(DGEFiltered[["counts"]]))
 row.names(DGEFiltered[["pseudo.counts"]]) <- cleanid(row.names(DGEFiltered[["pseudo.counts"]]))
 ```
+
+```{r designMatrix}
+designMatrix <- model.matrix(~0+DGEFiltered[["samples"]][["group"]])
+colnames(designMatrix) <- levels(DGEFiltered[["samples"]][["group"]])
+designMatrix
+```
+
+Una vez analizada la dispersión, podemos ver la expresión diferencial entre los distintos grupos.
 
 ```{r exact_test}
 exactEdgeR12 <- exactTest(DGEFiltered, pair = c(1,2))
@@ -376,11 +421,54 @@ resultEdgeR13
 
 Los objetos *TopTags* obtenidos nos muestran 5 columnas para cada una de las 3 comparaciones realizadas: la primera muestra los identificadores de los genes, la segunda `logFC` es el logaritmo en base 2 del *fold change*, la tercera `logCPM` es la media del `log2` de las cuentas por millón para cada gen, la cuarta `PValue` es el p valor para la significancia estadística de este cambio, y la última, `FDR` es el p valor ajustado para test múltiple que controla los falsos positivos. 
 
-Para visualizar mejor estos resultados los representamos gráficamente: 
 
-### Representación gráfica (*Smear plots*) de las tres comparaciones {.tabset}
+## Anotación de los resultados
+
+Utilizando el paquete `biomaRt` creamos una tabla para anotar nuestros genes: 
+
+```{r descargar_datos_anotacion}
+library(biomaRt)
+my_ensemblIDs <- row.names(DGEFiltered[["pseudo.counts"]])
+ensembl <- useMart("ensembl", dataset = "hsapiens_gene_ensembl")
+anotationTable <- getBM(attributes = c("external_gene_name", "ensembl_gene_id", "entrezgene_id","go_id", "name_1006"), filters = c("ensembl_gene_id"), values= my_ensemblIDs, mart = ensembl)
+```
+
+Tras el filtraje de los genes que no tienen código *entrez*, nos queda una tabla de este estilo: 
+
+```{r filtrar_anotacion, echo=FALSE}
+match_tot <- match(rownames(DGEFiltered$counts), anotationTable$ensembl_gene_id)
+match_tot <- match_tot[!is.na(match_tot)]
+DGEFiltered$anotation <- anotationTable[match_tot,]
+
+library(kableExtra)
+kable(DGEFiltered$anotation, "html") %>% kable_styling("striped") %>% scroll_box(width = "100%", height = 7)
+```
+
+```{r anotacion_exactgroups}
+#Comparacion12 NITvsELI
+match12 <- match(rownames(exactEdgeR12[["table"]]), DGEFiltered$anotation$ensembl_gene_id)
+match12 <- match12[!is.na(match12)]
+exactEdgeR12$genes <- DGEFiltered$anotation[match12,]
+
+#Comparacion23 SFIvsNIT
+match23 <- match(rownames(exactEdgeR23[["table"]]), DGEFiltered$anotation$ensembl_gene_id)
+match23 <- match23[!is.na(match23)]
+exactEdgeR23$genes <- DGEFiltered$anotation[match23,]
+
+#Comparacion13 SFIvsELI
+match13 <- match(rownames(exactEdgeR13[["table"]]), DGEFiltered$anotation$ensembl_gene_id)
+match13 <- match13[!is.na(match13)]
+exactEdgeR13$genes <- DGEFiltered$anotation[match13,]
+```
+
+## Busca de patrones de expresión y agrupación de las muestras (comparación entre las distintas comparaciones)
+
+Visualizamos los resultados de las tres comparaciones mediante *smear plots* y *volcano plots*.
+
+### Representación gráfica (*Smear plots*) de las tres comparaciones {.tabset .tabset-fade}
 
 #### NIT vs ELI
+
 ```{r smearplot_12, echo = FALSE, fig.cap="Representación gráfica de la expresión diferencial entre los grupos NIT y ELI"}
 library(edgeR)
 
@@ -414,7 +502,8 @@ decide_genes13 <- rownames(DGEFiltered)[as.logical(decide13)]
 plotSmear(exactEdgeR13, de.tags = decide_genes13, cex=0.5)
 abline(h = c(-2,2), col = "blue")
 ```
-###  Volcano plots de las comparaciones entre grupos {.tabset}
+
+###  Volcano plots de las comparaciones entre grupos {.tabset .tabset-fade}
 
 #### NIT vs ELI
 
@@ -491,25 +580,59 @@ mtext(paste("pval =", pval), side = 4, at = -log10(pval), cex = 0.8, line = 0.5,
 mtext(c(paste("-", lfc, "fold"), paste ("+", lfc, "fold")), side = -3, at = c(-lfc, lfc), cex = 0.8, line = 0.5)
 ```
 
-## Anotación de los resultados
+###
 
-Utilizando el paquete `biomaRt` creamos una tabla para anotar nuestros genes: 
+Realizamos un *gene clustering* mediante un heatmap para ver qué genes tienen una actividad similar y cómo se agrupan según sus niveles de expresión en cada una de las tres comparaciones: 
 
-```{r descargar_datos_anotacion}
-library(biomaRt)
-my_ensemblIDs <- row.names(DGEFiltered[["pseudo.counts"]])
-ensembl <- useMart("ensembl", dataset = "hsapiens_gene_ensembl")
-anotationTable <- getBM(attributes = c("external_gene_name", "ensembl_gene_id", "entrezgene_id","go_id", "name_1006"), filters = c("ensembl_gene_id"), values= my_ensemblIDs, mart = ensembl)
+```{r heatmap_clustering_data, include=FALSE}
+HMcpm <- cpm(DGEFiltered, prior.count = 2, log = T)
+rownames(HMcpm) <- row.names(DGEFiltered$counts)
+colnames(HMcpm) <- paste(DGEFiltered$samples$group, 1:10, sep = "-")
 ```
 
-```{r filtrar_anotacion}
-#Filtramos los genes que no tienen entrezgeneID
-DGEFiltered$anotation <- anotationTable[!is.na(anotationTable$entrezgene_id),
-                                     c("external_gene_name", "ensembl_gene_id", "entrezgene_id", "go_id", "name_1006")]
-head(DGEFiltered$anotation)
+### Heatmaps de clustering de genes {.tabset .tabset-fade}
+
+#### NIT vs ELI
+
+```{r heatmap12, echo=FALSE, fig.cap="Heatmap que muetra los genes agrupados según sus perfiles de expresión en la comparación entre el grupo NIT y el grupo ELI"}
+order12 <- order(exactEdgeR12$table$PValue)
+HMcpm_12 <- HMcpm[order12[1:30],]
+
+#Cambiamos los nombres de los genes que tenemos anotados a sus nombres generales, los que no tienen anotación los dejamos con el código ensembl
+rownames(HMcpm_12) <- ifelse(is.element(rownames(HMcpm_12), exactEdgeR12$genes$ensembl_gene_id), exactEdgeR12$genes$external_gene_name, exactEdgeR12$genes$ensembl_gene_id)
+
+#Construimos el heatmap
+coolmap(HMcpm_12, margins = c(7,7), lhei=c(1,6), lwid=c(1,3))
 ```
 
-## Busca de patrones de expresión y agrupación de las muestras (comparación entre las distintas comparaciones)
+#### SFI vs NIT
+
+```{r heatmap23, echo=FALSE, fig.cap="Heatmap que muetra los genes agrupados según sus perfiles de expresión en la comparación entre el grupo SFI y el grupo NIT"}
+order23 <- order(exactEdgeR23$table$PValue)
+HMcpm_23 <- HMcpm[order23[1:30],]
+
+#Cambiamos los nombres de los genes que tenemos anotados a sus nombres generales, los que no tienen anotación los dejamos con el código ensembl
+rownames(HMcpm_23) <- ifelse(is.element(rownames(HMcpm_23), exactEdgeR23$genes$ensembl_gene_id), exactEdgeR23$genes$external_gene_name, exactEdgeR23$genes$ensembl_gene_id)
+
+#Construimos el heatmap
+coolmap(HMcpm_23, margins = c(7,7), lhei=c(1,6), lwid=c(1,3))
+```
+
+#### SFI vs ELI
+
+```{r heatmap13, echo=FALSE, fig.cap="Heatmap que muetra los genes agrupados según sus perfiles de expresión en la comparación entre el grupo SFI y el grupo ELI"}
+order13 <- order(exactEdgeR13$table$PValue)
+HMcpm_13 <- HMcpm[order13[1:30],]
+
+#Cambiamos los nombres de los genes que tenemos anotados a sus nombres generales, los que no tienen anotación los dejamos con el código ensembl
+rownames(HMcpm_13) <- ifelse(is.element(rownames(HMcpm_13), exactEdgeR13$genes$ensembl_gene_id), exactEdgeR13$genes$external_gene_name, exactEdgeR13$genes$ensembl_gene_id)
+
+#Construimos el heatmap
+coolmap(HMcpm_13, margins = c(7,7), lhei=c(1,6), lwid=c(1,3))
+```
+
+###
+
 
 ## Análisis de significación biológica ("*Gene Enrichment Analysis*")
 
