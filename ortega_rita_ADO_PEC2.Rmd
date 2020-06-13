@@ -48,12 +48,8 @@ usePackage("knitr")
 usePackage("ggplot2")
 
 if(!require(locfit)) install.packages("locfit", type = "source")
-
 if(!require(kableExtra)) install.packages('kableExtra',  repos = 'http://cran.rstudio.com')
-
 if(!require(printr)) install.packages('printr', type = 'source',repos = c('http://yihui.name/xran','http://cran.rstudio.com'))
-
-if(!require(ggrepel)) install.packages('ggrepel', repos = 'http://cran.rstudio.com')
 ```
 
 ```{r Bioconductor, include=FALSE}
@@ -68,16 +64,9 @@ BiocManager::install("mixOmics")
 BiocManager::install("DESeq")
 BiocManager::install("biomaRt")
 BiocManager::install("grex")
-
-BiocManager::install("GEOquery")
-BiocManager::install("oligo")
-BiocManager::install("pd.mogene.2.1.st")
-BiocManager::install("RSQLite")
-BiocManager::install("pvca")
-BiocManager::install("mogene21sttranscriptcluster.db")
-BiocManager::install("magrittr")
 BiocManager::install("clusterProfiler")
-BiocManager::install("rWikiPathways", update = FALSE)
+BiocManager::install("org.Hs.eg.db")
+BiocManager::install("enrichplot")
 ```
 
 Todos los archivos relacionados con este trabajo se pueden encontrar en el repositorio de Github [riorval/ADO_PEC2](https://github.com/riorval/ADO_PEC2.git).
@@ -190,7 +179,7 @@ ggplot(as.data.frame(pseudoCounts2), aes(x= pseudoCounts2[,1])) + ylab("CPM") + 
 
 Para poder visualizar la distribución de los datos de las 30 muestras con las que trabajamos, las representamos en forma de boxplot: 
 
-### {.tabset .tabset-fade}
+### Boxplots {.tabset .tabset-fade}
 
 #### Boxplot pseudoCounts
 
@@ -213,7 +202,7 @@ boxplot(pseudoCounts2, which = "all", las=2,
 
 Representamos los datos en gráficos de densidades para detectar si pudiera haber modos secundarios de la distribución de los datos:
 
-### {.tabset, .tabset-fade}
+### Gráficos de densidades {.tabset, .tabset-fade}
 
 #### Gráfico de densidades pseudoCounts
 
@@ -441,7 +430,7 @@ match_tot <- match_tot[!is.na(match_tot)]
 DGEFiltered$anotation <- anotationTable[match_tot,]
 
 library(kableExtra)
-kable(DGEFiltered$anotation, "html") %>% kable_styling("striped") %>% scroll_box(width = "100%", height = 7)
+kable(DGEFiltered$anotation, "html") %>% kable_styling("striped") %>% scroll_box(height = "50px", width = "100%")
 ```
 
 ```{r anotacion_exactgroups}
@@ -580,7 +569,6 @@ mtext(paste("pval =", pval), side = 4, at = -log10(pval), cex = 0.8, line = 0.5,
 mtext(c(paste("-", lfc, "fold"), paste ("+", lfc, "fold")), side = -3, at = c(-lfc, lfc), cex = 0.8, line = 0.5)
 ```
 
-###
 
 Realizamos un *gene clustering* mediante un heatmap para ver qué genes tienen una actividad similar y cómo se agrupan según sus niveles de expresión en cada una de las tres comparaciones: 
 
@@ -631,10 +619,52 @@ rownames(HMcpm_13) <- ifelse(is.element(rownames(HMcpm_13), exactEdgeR13$genes$e
 coolmap(HMcpm_13, margins = c(7,7), lhei=c(1,6), lwid=c(1,3))
 ```
 
-###
-
 
 ## Análisis de significación biológica ("*Gene Enrichment Analysis*")
+
+```{r enrichment12}
+library(clusterProfiler)
+library(org.Hs.eg.db)
+enriched12 <- enrichGO(gene = c(exactEdgeR12$genes$entrezgene_id), 
+                       keyType = "ENTREZID",
+                       OrgDb = org.Hs.eg.db,
+                       ont = "BP",
+                       pAdjustMethod = "BH",
+                       readable = TRUE)
+clusterSummary12 <- data.frame(enriched12)
+dotplot(enriched12, showCategory=30)
+```
+#############
+```{r cnetplot12}
+library(enrichplot)
+cnetplot(enriched12, showCategory = 15)
+```
+
+```{r enrichment23}
+library(clusterProfiler)
+library(org.Hs.eg.db)
+enriched23 <- enrichGO(gene = c(exactEdgeR23$genes$entrezgene_id), 
+                       keyType = "ENTREZID",
+                       OrgDb = org.Hs.eg.db,
+                       ont = "BP",
+                       pAdjustMethod = "BH",
+                       readable = TRUE)
+clusterSummary23 <- data.frame(enriched23)
+dotplot(enriched23, showCategory=30)
+```
+
+```{r enrichment13}
+library(clusterProfiler)
+library(org.Hs.eg.db)
+enriched13 <- enrichGO(gene = c(exactEdgeR13$genes$entrezgene_id), 
+                       keyType = "ENTREZID",
+                       OrgDb = org.Hs.eg.db,
+                       ont = "BP",
+                       pAdjustMethod = "BH",
+                       readable = TRUE)
+clusterSummary13 <- data.frame(enriched13)
+dotplot(enriched13, showCategory=30)
+```
 
 # Resultados 
 
