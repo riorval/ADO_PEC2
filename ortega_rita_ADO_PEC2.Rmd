@@ -2,7 +2,8 @@
 title: "PEC2 Análisis de Datos Ómicos"
 author: "Rita Ortega Vallbona"
 date: '`r format(Sys.Date(),"%e de %B, %Y")`'
-output: 
+output:
+  bookdown::html_document2: default
   html_document: 
     number_sections: true
     theme: paper
@@ -24,7 +25,7 @@ params:
   seed.extract: 555
 bibliography: bibliografiaPEC2ADO.bib
 nocite: |
-  @tutorialRNAseq
+  @tutorialRNAseq, @org.Hs.eg.db, @DGEList, @edgeRtutorial
 ---
 
 ```{r setup, include=FALSE}
@@ -66,7 +67,6 @@ BiocManager::install("biomaRt")
 BiocManager::install("grex")
 BiocManager::install("clusterProfiler")
 BiocManager::install("org.Hs.eg.db")
-BiocManager::install("enrichplot")
 ```
 
 Todos los archivos relacionados con este trabajo se pueden encontrar en el repositorio de Github [riorval/ADO_PEC2](https://github.com/riorval/ADO_PEC2.git).
@@ -74,6 +74,8 @@ Todos los archivos relacionados con este trabajo se pueden encontrar en el repos
 \pagebreak
 
 # Abstract
+
+En el presente estudio se pretende evaluar el efecto que tienen tres tipos de tratamiento sobre tejido de la glándula tiroides para construir un perfil de expresión. Veremos en el trabajo que uno de los tratamientos presenta mayor diferencia de expresión génica al compararlo con el tejido no infiltrado. 
 
 # Objetivos
 
@@ -152,14 +154,20 @@ colnames(mycounts) <- mytargets$newShortNames
 
 De este modo, nuestros datos de contaje quedan así: 
 
-```{r mycounts head}
+```{r mycounts head, echo=FALSE}
 library(kableExtra)
 kable(head(mycounts), "html") %>% kable_styling("striped") %>% scroll_box(width = "100%")
 ```
 
+```{r guardar_counts_targets, include=FALSE}
+dir.create("results")
+write.csv(mytargets, file = "./results/mytargets.csv")
+write.csv(mycounts, file = "./results/mycounts.csv")
+```
+
 Antes de proceder con el análisis de los datos, debemos evaluar la calidad de los datos crudos con los que vamos a trabajar, para detectar cualquier fallo técnico que pueda afectar a la interpretación de los datos. Analizaremos la calidad de los datos con representaciones gráficas, y dado que los datos resultantes de contajes suelen estar altamente sesgados, aplicaremos previamente una transformación logarítmica en base 2 para "normalizar" los datos. Además hemos de tener en cuenta que algunos de los contajes resultan en 0, para que ello no suponga un problema tomaremos *pseudocounts*, sumando una constante en todos los contajes, para que no den problema en la transformación logarítmica. 
 
-```{r visual log2 pseudocounts}
+```{r visual_log2_pseudocounts}
 pseudoCounts <- log2(mycounts +1)
 
 library(ggplot2)
@@ -167,7 +175,7 @@ library(ggplot2)
 ggplot(pseudoCounts, aes(x= pseudoCounts[,1])) + ylab(expression(log[2](count +1))) + xlab(names(pseudoCounts)[1]) + geom_histogram(colour = "white", fill = "#525252", binwidth = 0.6)
 ```
 
-Esta transformación logarítmica podría no ser suficiente para evaluar realmente cómo se distribuyen los datos, ya que los datos procedentes de RNA-seq no son homocedásticos, sino que su varianza aumenta según aumenta la media. Intentamos utilizar una función especializada del paquete `edgeR` para hacer una transformación de los datos y comparamos los resultados: 
+Esta transformación logarítmica podría no ser suficiente para evaluar realmente cómo se distribuyen los datos, ya que los datos procedentes de RNA-seq no son homocedásticos, sino que su varianza aumenta según aumenta la media. Intentamos utilizar una función especializada del paquete `edgeR` [@edgeR1, @edgeR2]  para hacer una transformación de los datos y comparamos los resultados: 
 
 ```{r cpm pseudocount}
 library(edgeR)
@@ -198,11 +206,10 @@ boxplot(pseudoCounts2, which = "all", las=2,
                 rep("skyblue1",10)),
         main = "Distribución de contajes de pseudoCounts2 (con edgeR)")
 ```
-###
+
+### Gráficos de densidades {.tabset .tabset-fade}
 
 Representamos los datos en gráficos de densidades para detectar si pudiera haber modos secundarios de la distribución de los datos:
-
-### Gráficos de densidades {.tabset, .tabset-fade}
 
 #### Gráfico de densidades pseudoCounts
 
@@ -223,7 +230,6 @@ pseudoCount_df2 = data.frame(pseudoCount_df2, Condition = substr(pseudoCount_df2
 ggplot(pseudoCount_df2, aes(x=value, colour = Samples, fill = Samples)) + ylim(c(0, 0.25)) + geom_density(alpha = 0.2, size = 1.25) + facet_wrap(~ Condition) + theme(legend.position = "top") + xlab(expression(log[2](count + 1)))
 ```
 
-###
 
 Para comprobar la reproducibilidad de las muestras, representamos los MA-plots para comparar muestras entre sí:
 
@@ -275,7 +281,7 @@ plot_grid(MA_SFI_11_12, MA_SFI_15_16, MA_SFI_18_19, align = "h", nrow = 1, ncol 
 plot_grid(MA_ELI_21_22, MA_ELI_23_25, MA_ELI_26_28, align = "h", nrow = 1, ncol = 3)
 ```
 
-Para ver qué muestras son más similares entre sí, las representamos en un heatmap: 
+Para ver qué muestras son más similares entre sí, las representamos en un heatmap con la función `cim` del paquete `mixOmics` [@mixOmics]:
 
 ```{r heatmap_pseudocount, echo=FALSE}
 targets_datatype <- substr(mytargets$molecular_data_type, 1, 3)
@@ -299,12 +305,12 @@ anot <- AnnotatedDataFrame(data = data.frame(grupo, datatype, sexo, row.names = 
 exprSetpseudoCounts <- new("ExpressionSet", exprs = as.matrix(pseudoCounts), phenoData= anot)
 ```
 
-```{r plotPCA_datatype, fig.cap= "PCA teniendo en cuenta el grupo experimental y el tipo de datos"}
-plotPCA(exprSetpseudoCounts, intgroup = c("grupo", "datatype"))
+```{r plotPCA_datatype, echo = FALSE, fig.cap= "PCA teniendo en cuenta el grupo experimental con el tipo de datos"}
+DESeq::plotPCA(exprSetpseudoCounts, intgroup = c("grupo", "datatype"))
 ```
 
-```{r plotPCA_sexo, fig.cap= "PCA teniendo en cuenta el grupo experimental y el sexo"}
-plotPCA(exprSetpseudoCounts, intgroup = c("grupo", "sexo")) 
+```{r plotPCA_sexo, echo = FALSE, fig.cap= "PCA teniendo en cuenta el grupo experimental con el sexo"}
+DESeq::plotPCA(exprSetpseudoCounts, intgroup = c("grupo", "sexo")) 
 ```
 
 ### Filtraje
@@ -375,7 +381,7 @@ names(DGEFiltered)
 plotBCV(DGEFiltered)
 ```
 
- Para facilitarnos el trabajo en pasos posteriores procedemos a convertir el nombre de los genes a código Ensembl y también creamos una matriz de diseño del experimento:
+ Para facilitarnos el trabajo en pasos posteriores procedemos a convertir el nombre de los genes a código Ensembl utilizando la función `cleanid` del paquete `grex` [@grex] y también creamos una matriz de diseño del experimento:
 
 ```{r cambia_genesIDs, include=FALSE}
 library(grex)
@@ -383,6 +389,9 @@ library(grex)
 #Convertimos los nombres de los genes en IDs de Ensembl
 row.names(DGEFiltered[["counts"]]) <- cleanid(row.names(DGEFiltered[["counts"]]))
 row.names(DGEFiltered[["pseudo.counts"]]) <- cleanid(row.names(DGEFiltered[["pseudo.counts"]]))
+
+write.csv(DGEFiltered$counts, file = "./results/DGEcounts.csv")
+write.csv(DGEFiltered$pseudo.counts, file = "./results/DGEnormalized.csv")
 ```
 
 ```{r designMatrix}
@@ -397,15 +406,29 @@ Una vez analizada la dispersión, podemos ver la expresión diferencial entre lo
 exactEdgeR12 <- exactTest(DGEFiltered, pair = c(1,2))
 exactEdgeR23 <- exactTest(DGEFiltered, pair = c(2,3))
 exactEdgeR13 <- exactTest(DGEFiltered, pair = c(1,3))
+```
 
-resultEdgeR12 <- topTags(exactEdgeR12)
-resultEdgeR12
+Tabla de los genes diferencialmente expresados más significativos en la comparación entre NIT y ELI:
 
-resultEdgeR23 <- topTags(exactEdgeR23)
-resultEdgeR23
+```{r toptags12, echo=FALSE, fig.cap= "Tabla de los genes diferencialmente expresados más significativos en la comparación entre NIT y ELI"}
+library(kableExtra)
+resultEdgeR12 <- topTags(exactEdgeR12, n = 50)
+kable(resultEdgeR12$table, "html", digits = c(3,3,22,18)) %>% kable_styling("striped") %>% scroll_box(height = "200px", width = "100%")
+```
 
-resultEdgeR13 <- topTags(exactEdgeR13)
-resultEdgeR13
+Tabla de los genes diferencialmente expresados más significativos en la comparación entre NIT y SFI:
+
+```{r toptags23, echo=FALSE, fig.cap= "Tabla de los genes diferencialmente expresados más significativos en la comparación entre NIT y SFI"}
+library(kableExtra)
+resultEdgeR23 <- topTags(exactEdgeR23, n = 50)
+kable(resultEdgeR23$table, "html", digits = c(3,3,13,5)) %>% kable_styling("striped") %>% scroll_box(height = "200px", width = "100%")
+```
+
+Tabla de los genes diferencialmente expresados más significativos en la comparación entre SFI y ELI:
+
+```{r toptags13, echo=FALSE, fig.cap= "Tabla de los genes diferencialmente expresados más significativos en la comparación entre SFI y ELI"}
+resultEdgeR13 <- topTags(exactEdgeR13, n = 50)
+kable(resultEdgeR13$table, "html", digits = c(3,3,20,14)) %>% kable_styling("striped") %>% scroll_box(height = "200px", width = "100%")
 ```
 
 Los objetos *TopTags* obtenidos nos muestran 5 columnas para cada una de las 3 comparaciones realizadas: la primera muestra los identificadores de los genes, la segunda `logFC` es el logaritmo en base 2 del *fold change*, la tercera `logCPM` es la media del `log2` de las cuentas por millón para cada gen, la cuarta `PValue` es el p valor para la significancia estadística de este cambio, y la última, `FDR` es el p valor ajustado para test múltiple que controla los falsos positivos. 
@@ -413,7 +436,7 @@ Los objetos *TopTags* obtenidos nos muestran 5 columnas para cada una de las 3 c
 
 ## Anotación de los resultados
 
-Utilizando el paquete `biomaRt` creamos una tabla para anotar nuestros genes: 
+Utilizando el paquete `biomaRt` [@BiomaRt] creamos una tabla para anotar nuestros genes: 
 
 ```{r descargar_datos_anotacion}
 library(biomaRt)
@@ -422,16 +445,20 @@ ensembl <- useMart("ensembl", dataset = "hsapiens_gene_ensembl")
 anotationTable <- getBM(attributes = c("external_gene_name", "ensembl_gene_id", "entrezgene_id","go_id", "name_1006"), filters = c("ensembl_gene_id"), values= my_ensemblIDs, mart = ensembl)
 ```
 
-Tras el filtraje de los genes que no tienen código *entrez*, nos queda una tabla de este estilo: 
-
 ```{r filtrar_anotacion, echo=FALSE}
 match_tot <- match(rownames(DGEFiltered$counts), anotationTable$ensembl_gene_id)
 match_tot <- match_tot[!is.na(match_tot)]
 DGEFiltered$anotation <- anotationTable[match_tot,]
 
 library(kableExtra)
-kable(DGEFiltered$anotation, "html") %>% kable_styling("striped") %>% scroll_box(height = "50px", width = "100%")
+kable(DGEFiltered$anotation, "html") %>% kable_styling("striped") %>% scroll_box(height = "200px", width = "100%")
 ```
+
+```{r save anotation table, include=FALSE}
+write.csv(DGEFiltered$anotation, file = "./results/anotacion_tot.csv")
+```
+
+Anotamos los resultados de los exact tests:
 
 ```{r anotacion_exactgroups}
 #Comparacion12 NITvsELI
@@ -622,54 +649,117 @@ coolmap(HMcpm_13, margins = c(7,7), lhei=c(1,6), lwid=c(1,3))
 
 ## Análisis de significación biológica ("*Gene Enrichment Analysis*")
 
-```{r enrichment12}
-library(clusterProfiler)
+Realizamos el análisis de significación biológica con ayuda de la función `enrichGO` del paquete `clusterProfiler` [@clusterProfiler]. Primero debemos seleccionar los genes que se encuentran diferencialmente expresados, y lo hacemos mediante esta función específica: 
+
+```{r seleccionar genes para enrichment}
+selectTablasEnrich <- function(Exact){
+  df2pvTrans <- data.frame(logFC = Exact$table[,1], negLogPval = -log10(Exact$table[,3]))
+  #Identificar valores de interés
+  lfc = 2
+  pval = 0.05
+  #Seleccionamos los genes de interés
+  signGenes <- (abs(df2pvTrans$logFC) > lfc & df2pvTrans$negLogPval > -log10(pval))
+  #recogemos los ID ensembl de los genes de interés
+  IDselec <- rownames(Exact$table)[signGenes]
+  matched <- match(IDselec, Exact$genes$ensembl_gene_id)
+  matched <- matched[!is.na(matched)]
+  GenesSelec <- Exact$genes[matched,]
+  return(GenesSelec)
+}
+```
+
+```{r enrichment12, eval=FALSE, include=FALSE, fig.cap="Categorías de genes más comunes en la comparación NIT vs ELI"}
+require(clusterProfiler)
 library(org.Hs.eg.db)
-enriched12 <- enrichGO(gene = c(exactEdgeR12$genes$entrezgene_id), 
+
+#Seleccionamos genes de interés
+GenSelec12 <- selectTablasEnrich(exactEdgeR12)
+GenSelec12entrez <- x[!is.na(GenSelec12$entrezgene_id)]
+
+enriched12 <- clusterProfiler::enrichGO(gene = GenSelec12entrez, 
                        keyType = "ENTREZID",
                        OrgDb = org.Hs.eg.db,
                        ont = "BP",
                        pAdjustMethod = "BH",
                        readable = TRUE)
 clusterSummary12 <- data.frame(enriched12)
-dotplot(enriched12, showCategory=30)
-```
-#############
-```{r cnetplot12}
-library(enrichplot)
-cnetplot(enriched12, showCategory = 15)
+barplot(enriched12, showCategory=10)
 ```
 
-```{r enrichment23}
-library(clusterProfiler)
+
+```{r enrichment23, eval=FALSE, include=FALSE, fig.cap="Categorías de genes más comunes en la comparación NIT vs SFI"}
+require(clusterProfiler)
 library(org.Hs.eg.db)
-enriched23 <- enrichGO(gene = c(exactEdgeR23$genes$entrezgene_id), 
+
+#Seleccionamos genes de interés
+GenSelec23 <- selectTablasEnrich(exactEdgeR23)
+GenSelec23entrez <- x[!is.na(GenSelec23$entrezgene_id)]
+
+enriched23 <- enrichGO(gene = GenSelec23entrez, 
                        keyType = "ENTREZID",
                        OrgDb = org.Hs.eg.db,
                        ont = "BP",
                        pAdjustMethod = "BH",
                        readable = TRUE)
 clusterSummary23 <- data.frame(enriched23)
-dotplot(enriched23, showCategory=30)
+barplot(enriched23, showCategory=10)
 ```
 
-```{r enrichment13}
+```{r enrichment13, eval=FALSE, include=FALSE, fig.cap="Categorías de genes más comunes en la comparación SFI vs ELI"}
 library(clusterProfiler)
 library(org.Hs.eg.db)
-enriched13 <- enrichGO(gene = c(exactEdgeR13$genes$entrezgene_id), 
+
+#Seleccionamos genes de interés
+GenSelec13 <- selectTablasEnrich(exactEdgeR13)
+GenSelec13entrez <- x[!is.na(GenSelec13$entrezgene_id)]
+
+enriched13 <- enrichGO(gene = GenSelec13entrez, 
                        keyType = "ENTREZID",
                        OrgDb = org.Hs.eg.db,
                        ont = "BP",
                        pAdjustMethod = "BH",
                        readable = TRUE)
 clusterSummary13 <- data.frame(enriched13)
-dotplot(enriched13, showCategory=30)
+barplot(enriched13, showCategory=30)
 ```
 
 # Resultados 
 
+En el análisis previo al filtraje y normalización de los datos nos centramos en representar los datos gráficamente para saber qué distrinbución siguen. En el barplot \@ref(fig:visual_log2_pseudocounts) podemos ver que hay un altísimo número de contajes cercanos a cero y que los datos están muy sesgados, los que significa que sólo unos pocos genes se encuentran expresados en las muestras. 
+
+En el boxplot \@ref(fig:boxplot_rawdata_pseudocounts) comprobamos que los datos de todas las muestras se encuentran distribuidos de forma similar, y que ninguna muestra es anómala, por tanto podemos usarlas todas para nuestro análisis. Lo mismo podemos comprobar en los gráficos de densidades \@ref(fig:density_plot_pseudocounts), pudiendo comparar la distribución de los datos en los 3 grupos por separado. 
+
+Continuamos con un heatmap \@ref(fig:heatmap_pseudocount) de las muestras sin normalizar, para ver si se agrupan por grupos. Aquí tuvimos en cuenta no sólo los tres grupos experimentales, sino también la variable sexo y el tipo de datos que se nos presentan en las targets. Podemos darnos cuenta analizando este heatmap de que las mustras del mismo grupo experimental y mismo sexo tienden a ser más similares, lo que nos reafirma que podemos estudiar la expresión diferencial de genes en los distintos grupos experimentales. 
+
+En el apartado 3.5 buscamos patrones de expresión de los distintos grupos de muestras. Tanto en los *smear plots* como en los volcano plots podemos observar claras diferencias al comparar los datos de los grupos experimentales entre sí. 
+
+![Smear plot de NIT vs ELI](./ortega_rita_ADO_PEC2_files/figure-html/smearplot_12-1.png){width=100%}
+
+La comparación entre los grupos NIT y ELI es la que presenta las diferencias más significativas de las tres comparaciones. 
+
+![Volcano plot de NIT vs ELI](./ortega_rita_ADO_PEC2_files/figure-html/volcano_12-1.png){width=100%}
+
+En los heatmaps de la sección 3.5.3 podemos ver patrones claros de expresión en cada comparación.
+
+En el análisis de significación biológica obtenemos las categorías de los genes que más variación presentan en cada comparación: 
+
+![Barplot gene enrichment de NIT vs ELI](./images_enrichment/barplot_enrich12.png){width=100%}
+
+La comparación entre tejido no infiltrado (NIT) y *Extensive lymphoid infiltrates* (ELI), que es la que mñas diferencias presenta en el estudio, no indica que los genes que más se ven regulados son los que participan en la desgranulación plaquetaria, en el metabolismo y respuesta xenobiótica y en la actividad de la peptidasa. 
+
+![Barplot gene enrichment de NIT vs SFI](./images_enrichment/barplot_enrich23.png){width=100%}
+
+En la comparación entre NIT y *Small focal infiltrates* (SFI), el número de categorías de los genes regulados es menor, sólo podemos ver seis categorías, siendo la primera también la desgranulación plaquetaria, y otras funciones relacionadas con la coagulación de la sangre. 
+
+![Barplot gene enrichment de ELI vs SFI](./images_enrichment/barplot_enrich13.png){width=100%}
+
+Por último en la comparación entre ELI y SFI, encontramos prácticamente el mismo perfil que al comparar SFI con NIT. De nuevo la categoría más abundante es la degranulación plaquetaria, y las demás funciones se relacionan con la coagulación y la respuesta inmune. 
+
 # Discusión
 
-# Apéndice
+Suponiendo que los datos con los que trabajamos porvienen de tejidos sanos, y que los tratamientos que se les han aplicado pretenden detectar los cambios en al expresión de los genes,
+dados los resultados obtenidos en este análisis, podríamos llegar a la conclusión de que el tratamiento más efectivo es la infiltración extensiva linfoide. 
+Es este tratamiento el que provoca un cmabio mayor en la expresión génica del tejido, aunque, por supuesto, dependiendo del resutlado que se deseara obtener, debería estudiarse qué tipo de respuesta biológica se desea. 
+Sería necesario comentar que, aunque la tecnología que nos permite realizar este tipo de estudios avanza día tras día, las bases de datos que recogen la información de los genes sigue estando incompleta, y muchos de los genes que hemos encontrado diferencialmente expresados no se han podido anotar por falta de información en las bases de datos. Sin duda las bases de datos continuarán creciendo gracias al trabajo de los equipos científicos distribuidos por el mundo.
 
 # Bibliografía

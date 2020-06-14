@@ -16,3 +16,8 @@ Biobase
 DESeq
 grex
 biomaRt
+clusterProfiler
+S4Vectors
+IRanges
+AnnotationDbi
+org.Hs.eg.db
